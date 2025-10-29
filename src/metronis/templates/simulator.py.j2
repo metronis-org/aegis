@@ -1,0 +1,354 @@
+"""
+Auto-generated Simulator: {{ simulator_name }}
+Domain: {{ domain_name }}
+Type: {{ simulator_type }}
+Dynamics: {{ dynamics }}
+"""
+
+from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+import gym
+from gym import spaces
+
+
+class {{ simulator_name.replace('_', ' ').title().replace(' ', '') }}(gym.Env):
+    """
+    {{ simulator_type }} for {{ domain_name }} domain.
+
+    State Space: {{ state_space }}
+    Action Space: {{ action_space }}
+    Reward Function: {{ reward_function }}
+    """
+
+    metadata = {"render.modes": ["human", "rgb_array"]}
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """Initialize the simulator."""
+        super().__init__()
+        self.config = config or {}
+
+        # Define state space
+        self.state_space_def = {{ state_space }}
+        self.observation_space = self._create_observation_space()
+
+        # Define action space
+        self.action_space_def = {{ action_space }}
+        self.action_space = self._create_action_space()
+
+        # Initialize state
+        self.state = None
+        self.steps = 0
+        self.max_steps = self.config.get("max_steps", 1000)
+
+        # Dynamics model
+        self.dynamics = "{{ dynamics }}"
+        self.transition_model = None  # Will be learned from data
+
+    def _create_observation_space(self) -> spaces.Space:
+        """Create Gym observation space from state_space_def."""
+        # This is a simplified version - should be customized per domain
+        {% if state_space is mapping %}
+        space_dict = {}
+        {% for key, value in state_space.items() %}
+        # {{ key }}: {{ value }}
+        {% if value is sequence %}
+        space_dict["{{ key }}"] = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=({{ value | length }},),
+            dtype=np.float32
+        )
+        {% else %}
+        space_dict["{{ key }}"] = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(1,),
+            dtype=np.float32
+        )
+        {% endif %}
+        {% endfor %}
+        return spaces.Dict(space_dict)
+        {% else %}
+        return spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(10,),  # Default size
+            dtype=np.float32
+        )
+        {% endif %}
+
+    def _create_action_space(self) -> spaces.Space:
+        """Create Gym action space from action_space_def."""
+        # Simplified - should be customized
+        {% if action_space is mapping %}
+        space_dict = {}
+        {% for key, value in action_space.items() %}
+        # {{ key }}: {{ value }}
+        space_dict["{{ key }}"] = spaces.Discrete(2)  # Placeholder
+        {% endfor %}
+        return spaces.Dict(space_dict)
+        {% else %}
+        return spaces.Discrete(4)  # Default discrete actions
+        {% endif %}
+
+    def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[Any, Dict]:
+        """Reset the environment to initial state."""
+        super().reset(seed=seed)
+
+        # Initialize state
+        self.state = self._get_initial_state()
+        self.steps = 0
+
+        info = {"episode": 0}
+        return self.state, info
+
+    def step(self, action: Any) -> Tuple[Any, float, bool, bool, Dict]:
+        """
+        Execute one step in the environment.
+
+        Args:
+            action: Action to take
+
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        self.steps += 1
+
+        # Transition to next state
+        next_state = self._transition(self.state, action)
+
+        # Compute reward
+        reward = self._compute_reward(self.state, action, next_state)
+
+        # Check if episode is done
+        terminated = self._is_terminal(next_state)
+        truncated = self.steps >= self.max_steps
+
+        # Update state
+        self.state = next_state
+
+        # Additional info
+        info = {
+            "steps": self.steps,
+            "reward": reward,
+        }
+
+        return self.state, reward, terminated, truncated, info
+
+    def _get_initial_state(self) -> Dict[str, Any]:
+        """Generate initial state."""
+        {% if domain_name == "healthcare" %}
+        # Initialize patient state
+        return {
+            "vitals": self._sample_vitals(),
+            "labs": self._sample_labs(),
+            "medications": [],
+            "diagnoses": [],
+            "demographics": self._sample_demographics(),
+        }
+        {% elif domain_name == "trading" %}
+        # Initialize portfolio state
+        return {
+            "portfolio": {
+                "positions": [],
+                "cash": self.config.get("initial_cash", 100000),
+                "margin_used": 0,
+            },
+            "market": self._sample_market_data(),
+            "indicators": {},
+            "risk_metrics": {},
+        }
+        {% else %}
+        # Generic initial state
+        return {}
+        {% endif %}
+
+    def _transition(self, state: Dict[str, Any], action: Any) -> Dict[str, Any]:
+        """
+        Transition function: s' = T(s, a)
+
+        For stochastic dynamics, this samples from P(s'|s,a)
+        """
+        next_state = state.copy()
+
+        {% if dynamics == "stochastic" %}
+        # Add stochasticity to transitions
+        noise = np.random.normal(0, 0.1, size=len(state))
+        {% endif %}
+
+        {% if domain_name == "healthcare" %}
+        # Patient response to treatment
+        if "prescribe_medication" in action:
+            med = action["prescribe_medication"]
+            next_state["medications"].append(med)
+
+            # Simulate patient response (simplified)
+            response_rate = self._get_treatment_response_rate(med, state)
+            if np.random.random() < response_rate:
+                # Improve vitals
+                next_state["vitals"] = self._improve_vitals(state["vitals"])
+            else:
+                # May worsen or stay same
+                next_state["vitals"] = self._worsen_vitals(state["vitals"], probability=0.1)
+
+        {% elif domain_name == "trading" %}
+        # Market dynamics and order execution
+        if "place_order" in action:
+            order = action["place_order"]
+
+            # Execute order with slippage
+            executed_price = self._execute_order(order, state["market"])
+
+            # Update portfolio
+            next_state["portfolio"] = self._update_portfolio(
+                state["portfolio"],
+                order,
+                executed_price
+            )
+
+        # Market evolves
+        next_state["market"] = self._simulate_market_step(state["market"])
+
+        {% endif %}
+
+        return next_state
+
+    def _compute_reward(
+        self, state: Dict[str, Any], action: Any, next_state: Dict[str, Any]
+    ) -> float:
+        """
+        Reward function: r = R(s, a, s')
+
+        Domain-specific reward shaping
+        """
+        reward = 0.0
+
+        {% if domain_name == "healthcare" %}
+        # Reward: {{ reward_function }}
+        # Patient outcome improvement
+        vitals_improved = self._check_vitals_improvement(
+            state.get("vitals", {}),
+            next_state.get("vitals", {})
+        )
+        reward += 10.0 if vitals_improved else -5.0
+
+        # Penalize adverse events
+        if self._has_adverse_event(next_state):
+            reward -= 50.0
+
+        # Penalize unnecessary treatments
+        if len(next_state["medications"]) > len(state["medications"]) + 1:
+            reward -= 5.0  # Polypharmacy penalty
+
+        {% elif domain_name == "trading" %}
+        # Reward: {{ reward_function }}
+        # PnL change
+        pnl_change = self._calculate_pnl_change(state, next_state)
+        reward += pnl_change
+
+        # Risk penalties
+        var = self._calculate_var(next_state["portfolio"])
+        if var > self.config.get("max_var", 10000):
+            reward -= 100.0  # Risk limit violation
+
+        # Sharpe-adjusted reward
+        volatility = self._calculate_volatility(next_state)
+        if volatility > 0:
+            reward = reward / volatility  # Risk-adjusted
+
+        {% else %}
+        # Generic reward
+        reward = 1.0
+        {% endif %}
+
+        return reward
+
+    def _is_terminal(self, state: Dict[str, Any]) -> bool:
+        """Check if episode should terminate."""
+        {% if domain_name == "healthcare" %}
+        # Episode ends if patient discharged or deceased
+        if state.get("discharged", False):
+            return True
+        if self._patient_deceased(state):
+            return True
+        {% elif domain_name == "trading" %}
+        # Episode ends if account blown up
+        if state["portfolio"]["cash"] <= 0:
+            return True
+        {% endif %}
+
+        return False
+
+    def render(self, mode: str = "human") -> Optional[np.ndarray]:
+        """Render the environment."""
+        if mode == "human":
+            print(f"Step: {self.steps}")
+            print(f"State: {self.state}")
+        elif mode == "rgb_array":
+            # Return RGB array for video recording
+            return np.zeros((400, 600, 3), dtype=np.uint8)
+        return None
+
+    def close(self) -> None:
+        """Clean up resources."""
+        pass
+
+    # Helper methods (domain-specific)
+
+    {% if domain_name == "healthcare" %}
+    def _sample_vitals(self) -> Dict[str, float]:
+        """Sample realistic vital signs."""
+        return {
+            "blood_pressure_systolic": np.random.normal(120, 15),
+            "blood_pressure_diastolic": np.random.normal(80, 10),
+            "heart_rate": np.random.normal(75, 10),
+            "temperature": np.random.normal(98.6, 0.5),
+            "respiratory_rate": np.random.normal(16, 2),
+            "oxygen_saturation": np.random.normal(98, 1.5),
+        }
+
+    def _sample_labs(self) -> Dict[str, float]:
+        """Sample lab values."""
+        return {
+            "glucose": np.random.normal(100, 20),
+            "hemoglobin": np.random.normal(14, 2),
+            "creatinine": np.random.normal(1.0, 0.3),
+        }
+
+    def _sample_demographics(self) -> Dict[str, Any]:
+        """Sample patient demographics."""
+        return {
+            "age": np.random.randint(18, 90),
+            "sex": np.random.choice(["M", "F"]),
+            "weight": np.random.normal(70, 15),
+            "height": np.random.normal(170, 10),
+        }
+
+    {% elif domain_name == "trading" %}
+    def _sample_market_data(self) -> Dict[str, Any]:
+        """Sample market data."""
+        return {
+            "prices": {},
+            "volumes": {},
+            "order_book": {},
+        }
+
+    def _execute_order(self, order: Dict, market: Dict) -> float:
+        """Execute order with realistic slippage."""
+        base_price = market.get("prices", {}).get(order.get("symbol"), 100.0)
+
+        # Add slippage
+        slippage_pct = np.random.normal(0, 0.001)  # 10 bps std dev
+        executed_price = base_price * (1 + slippage_pct)
+
+        return executed_price
+
+    {% endif %}
+
+
+# Register environment
+gym.register(
+    id="{{ simulator_name }}-v0",
+    entry_point="{{ simulator_name.replace('_', ' ').title().replace(' ', '') }}",
+    max_episode_steps={{ config.get('max_steps', 1000) if config else 1000 }},
+)

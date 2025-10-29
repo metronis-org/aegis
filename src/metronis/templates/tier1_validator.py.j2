@@ -1,0 +1,155 @@
+"""
+Auto-generated Tier-1 validator for {{ domain_name }} domain.
+Constraint: {{ constraint_name }}
+"""
+
+from typing import Any, Dict, List, Optional
+import time
+
+from metronis.core.interfaces import EvaluationModule
+from metronis.core.models import EvaluationIssue, ModuleResult, Severity, Trace
+
+
+class {{ class_name }}(EvaluationModule):
+    """
+    {{ description }}
+
+    Type: {{ constraint_type }}
+    Severity: {{ severity }}
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """Initialize the validator."""
+        super().__init__(config)
+        {% for param_name, param_value in parameters.items() %}
+        self.{{ param_name }} = self.config.get("{{ param_name }}", {{ param_value }})
+        {% endfor %}
+
+    def get_tier_level(self) -> int:
+        """Return tier level."""
+        return 1
+
+    def evaluate(
+        self, trace: Trace, context: Optional[Dict[str, Any]] = None
+    ) -> ModuleResult:
+        """Evaluate the trace against {{ constraint_name }}."""
+        start_time = time.time()
+        issues: List[EvaluationIssue] = []
+
+        {% if constraint_type == "range_check" %}
+        # Range check validation
+        entities = self._extract_entities(trace)
+        for entity in entities:
+            value = entity.get("value", 0)
+            {% for param_name, param_value in parameters.items() %}
+            {% if "max" in param_name %}
+            if value > self.{{ param_name }}:
+                issues.append(
+                    EvaluationIssue(
+                        type="{{ constraint_name }}",
+                        severity=Severity.{{ severity.upper() }},
+                        message=f"Value {value} exceeds maximum {self.{{ param_name }}}",
+                        details={"entity": entity, "limit": self.{{ param_name }}},
+                    )
+                )
+            {% endif %}
+            {% if "min" in param_name %}
+            if value < self.{{ param_name }}:
+                issues.append(
+                    EvaluationIssue(
+                        type="{{ constraint_name }}",
+                        severity=Severity.{{ severity.upper() }},
+                        message=f"Value {value} below minimum {self.{{ param_name }}}",
+                        details={"entity": entity, "limit": self.{{ param_name }}},
+                    )
+                )
+            {% endif %}
+            {% endfor %}
+
+        {% elif constraint_type == "existence_check" %}
+        # Existence validation using knowledge base
+        entities = self._extract_entities(trace)
+        kb_service = context.get("knowledge_base_service") if context else None
+
+        if kb_service:
+            for entity in entities:
+                exists = kb_service.check_existence(
+                    "{{ parameters.get('knowledge_base', 'default') }}",
+                    entity.get("name", "")
+                )
+                if not exists:
+                    issues.append(
+                        EvaluationIssue(
+                            type="{{ constraint_name }}",
+                            severity=Severity.{{ severity.upper() }},
+                            message=f"Entity '{entity.get('name')}' not found in knowledge base",
+                            details={"entity": entity},
+                        )
+                    )
+
+        {% elif constraint_type == "interaction_check" %}
+        # Interaction validation
+        entities = self._extract_entities(trace)
+        kb_service = context.get("knowledge_base_service") if context else None
+
+        if kb_service:
+            # Check pairwise interactions
+            for i, entity1 in enumerate(entities):
+                for entity2 in entities[i+1:]:
+                    interaction = kb_service.check_interaction(
+                        entity1.get("name"),
+                        entity2.get("name")
+                    )
+                    if interaction and interaction.get("severity") in {{ parameters.get('severity_levels', ['major', 'contraindicated']) }}:
+                        issues.append(
+                            EvaluationIssue(
+                                type="{{ constraint_name }}",
+                                severity=Severity.{{ severity.upper() }},
+                                message=f"Interaction detected: {interaction.get('description', 'Unknown')}",
+                                details={
+                                    "entity1": entity1,
+                                    "entity2": entity2,
+                                    "interaction": interaction
+                                },
+                            )
+                        )
+
+        {% else %}
+        # Generic validation
+        # TODO: Implement custom validation logic for {{ constraint_type }}
+        pass
+        {% endif %}
+
+        execution_time = (time.time() - start_time) * 1000  # Convert to ms
+
+        return ModuleResult(
+            module_name=self.name,
+            tier_level=1,
+            passed=len(issues) == 0,
+            issues=issues,
+            execution_time_ms=execution_time,
+            metadata={"entities_checked": len(entities) if 'entities' in locals() else 0},
+        )
+
+    def _extract_entities(self, trace: Trace) -> List[Dict[str, Any]]:
+        """Extract relevant entities from the trace."""
+        entities = []
+
+        # Extract from AI output
+        output_text = trace.ai_processing.output
+
+        # Domain-specific entity extraction
+        # TODO: Implement NER or regex-based extraction
+
+        # For now, check metadata
+        if hasattr(trace.metadata, 'custom_fields'):
+            entities = trace.metadata.custom_fields.get('entities', [])
+
+        return entities
+
+    def is_applicable(self, trace: Trace) -> bool:
+        """Check if this module applies to the trace."""
+        return (
+            trace.metadata.domain == "{{ domain_name }}" or
+            trace.application_type in ["clinical_support", "diagnostic", "documentation"]  # Adjust per domain
+        )

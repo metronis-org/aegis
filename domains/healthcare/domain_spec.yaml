@@ -1,0 +1,69 @@
+domain_name: healthcare
+display_name: Healthcare AI Evaluation
+description: Comprehensive evaluation suite for healthcare AI applications
+risk_level: critical
+regulatory_frameworks:
+  - FDA_TPLC
+  - HIPAA
+  - 21_CFR_Part_11
+
+entities:
+  medication: [drug_name, dosage, route, frequency]
+  diagnosis: [icd10_code, condition_name, severity]
+  procedure: [cpt_code, procedure_name]
+
+safety_constraints:
+  - name: no_medication_overdose
+    description: Ensure medication dosages are within safe limits
+    constraint_type: range_check
+    parameters:
+      max_daily_dose: 500
+    severity: critical
+
+knowledge_bases:
+  - name: rxnorm
+    type: rest_api
+    api_url: https://rxnav.nlm.nih.gov/REST/
+    cache_ttl: 86400
+
+success_metrics:
+  primary: patient_outcome_90_day
+  secondary: [medication_adherence, adverse_event_rate]
+
+tier1_modules:
+  - MedicationValidator
+  - DrugInteractionChecker
+
+tier2_models:
+  - name: clinical_risk_predictor
+    model_type: bert_classifier
+    input_features:
+      - input_text
+      - output_text
+      - patient_context
+    output: risk_score
+    training_data_source: synthetic_traces
+
+tier3_evals:
+  - name: clinical_reasoning_evaluator
+    eval_type: clinical_reasoning
+    criteria:
+      - contraindication_check
+      - evidence_based_recommendations
+      - dosage_appropriateness
+      - scope_of_practice
+      - drug_interaction_awareness
+    prompt_template: tier3_clinical_reasoning
+
+simulators:
+  - name: patient_outcome_simulator
+    simulator_type: rl_environment
+    dynamics: stochastic
+    state_space:
+      type: dict
+      fields: [patient_vitals, current_medications, diagnoses]
+    action_space:
+      type: discrete
+      actions: [prescribe_medication, order_test, refer_specialist, discharge]
+    reward_function: patient_outcome_90_day
+    transitions: model_based
