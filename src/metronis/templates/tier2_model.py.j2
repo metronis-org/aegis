@@ -1,0 +1,288 @@
+"""
+Auto-generated Tier-2 ML Model: {{ model_name }}
+Domain: {{ domain_name }}
+Model Type: {{ model_type }}
+"""
+
+from typing import Any, Dict, List, Optional
+import numpy as np
+from pathlib import Path
+
+# ML imports (will be installed as needed)
+try:
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    import torch
+except ImportError:
+    print("Warning: transformers not installed. Install with: pip install transformers torch")
+
+
+class {{ model_name.replace(' ', '') }}:
+    """
+    {{ model_type }} for {{ domain_name }} domain.
+
+    Input Features: {{ input_features }}
+    Output: {{ output }}
+    Training Data: {{ training_data_source }}
+    """
+
+    def __init__(self, model_path: Optional[Path] = None, config: Optional[Dict[str, Any]] = None):
+        """Initialize the model."""
+        self.model_path = model_path
+        self.config = config or {}
+        self.model = None
+        self.tokenizer = None
+        self.is_trained = False
+
+        if model_path and model_path.exists():
+            self.load_model(model_path)
+
+    def extract_features(self, trace: Any) -> Dict[str, float]:
+        """
+        Extract features from a trace for model input.
+
+        Returns:
+            Dictionary of feature_name -> feature_value
+        """
+        features = {}
+
+        {% for feature in input_features %}
+        # Extract: {{ feature }}
+        features["{{ feature }}"] = self._extract_{{ feature.replace('-', '_') }}(trace)
+        {% endfor %}
+
+        return features
+
+    {% for feature in input_features %}
+    def _extract_{{ feature.replace('-', '_') }}(self, trace: Any) -> float:
+        """Extract {{ feature }} from trace."""
+        # TODO: Implement extraction logic
+        # This is a placeholder that should be customized per domain
+        return 0.0
+
+    {% endfor %}
+
+    {% if model_type == "bert_classifier" %}
+    def train(self, training_data: List[Dict[str, Any]], validation_data: Optional[List[Dict[str, Any]]] = None):
+        """
+        Train the BERT classifier.
+
+        Args:
+            training_data: List of {trace, label, features} dicts
+            validation_data: Optional validation set
+        """
+        from transformers import Trainer, TrainingArguments
+
+        # Load pre-trained BERT
+        model_name = self.config.get("base_model", "bert-base-uncased")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=self.config.get("num_labels", 2)
+        )
+
+        # Prepare dataset
+        train_encodings = self._prepare_encodings(training_data)
+
+        # Training arguments
+        training_args = TrainingArguments(
+            output_dir=str(self.model_path or "./models/{{ model_name.replace(' ', '_').lower() }}"),
+            num_train_epochs=self.config.get("fine_tune_epochs", 10),
+            per_device_train_batch_size=self.config.get("batch_size", 32),
+            per_device_eval_batch_size=self.config.get("batch_size", 32),
+            warmup_steps=500,
+            weight_decay=0.01,
+            logging_dir="./logs",
+            logging_steps=10,
+            evaluation_strategy="epoch" if validation_data else "no",
+            save_strategy="epoch",
+            load_best_model_at_end=True if validation_data else False,
+        )
+
+        # Create Trainer
+        trainer = Trainer(
+            model=self.model,
+            args=training_args,
+            train_dataset=train_encodings,
+            eval_dataset=self._prepare_encodings(validation_data) if validation_data else None,
+        )
+
+        # Train
+        trainer.train()
+        self.is_trained = True
+
+        # Save model
+        if self.model_path:
+            self.save_model(self.model_path)
+
+    def _prepare_encodings(self, data: List[Dict[str, Any]]):
+        """Prepare tokenized encodings for training."""
+        texts = [item["text"] for item in data]
+        labels = [item["label"] for item in data]
+
+        encodings = self.tokenizer(
+            texts,
+            truncation=True,
+            padding=True,
+            max_length=512,
+            return_tensors="pt"
+        )
+
+        return Dataset(encodings, labels)
+
+    {% elif model_type == "risk_predictor" %}
+    def train(self, training_data: List[Dict[str, Any]], validation_data: Optional[List[Dict[str, Any]]] = None):
+        """
+        Train the risk prediction model.
+
+        Args:
+            training_data: List of {features, risk_score} dicts
+            validation_data: Optional validation set
+        """
+        from sklearn.ensemble import GradientBoostingRegressor
+        from sklearn.preprocessing import StandardScaler
+
+        # Extract features and labels
+        X_train = np.array([self._feature_dict_to_array(item["features"]) for item in training_data])
+        y_train = np.array([item["risk_score"] for item in training_data])
+
+        # Normalize features
+        self.scaler = StandardScaler()
+        X_train = self.scaler.fit_transform(X_train)
+
+        # Train model
+        self.model = GradientBoostingRegressor(
+            n_estimators=self.config.get("n_estimators", 100),
+            learning_rate=self.config.get("learning_rate", 0.1),
+            max_depth=self.config.get("max_depth", 3),
+            random_state=42
+        )
+
+        self.model.fit(X_train, y_train)
+        self.is_trained = True
+
+        # Validation
+        if validation_data:
+            X_val = np.array([self._feature_dict_to_array(item["features"]) for item in validation_data])
+            y_val = np.array([item["risk_score"] for item in validation_data])
+            X_val = self.scaler.transform(X_val)
+
+            predictions = self.model.predict(X_val)
+            mse = np.mean((predictions - y_val) ** 2)
+            print(f"Validation MSE: {mse:.4f}")
+
+        # Save model
+        if self.model_path:
+            self.save_model(self.model_path)
+
+    def _feature_dict_to_array(self, features: Dict[str, float]) -> np.ndarray:
+        """Convert feature dictionary to array."""
+        return np.array([features.get(f, 0.0) for f in {{ input_features }}])
+
+    {% endif %}
+
+    def predict(self, trace: Any) -> Dict[str, Any]:
+        """
+        Make a prediction on a trace.
+
+        Returns:
+            Dictionary with prediction results
+        """
+        if not self.is_trained and not self.model:
+            raise ValueError("Model must be trained or loaded before prediction")
+
+        features = self.extract_features(trace)
+
+        {% if model_type == "bert_classifier" %}
+        # BERT classification
+        inputs = self.tokenizer(
+            trace.ai_processing.output,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=512
+        )
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            logits = outputs.logits
+            probabilities = torch.softmax(logits, dim=-1)
+            predicted_class = torch.argmax(probabilities, dim=-1).item()
+
+        return {
+            "{{ output }}": predicted_class,
+            "confidence": probabilities[0][predicted_class].item(),
+            "probabilities": probabilities[0].tolist(),
+        }
+
+        {% elif model_type == "risk_predictor" %}
+        # Risk prediction
+        feature_array = self._feature_dict_to_array(features)
+        feature_array = self.scaler.transform(feature_array.reshape(1, -1))
+
+        risk_score = self.model.predict(feature_array)[0]
+
+        return {
+            "{{ output }}": float(risk_score),
+            "features": features,
+        }
+
+        {% else %}
+        # Generic prediction
+        return {
+            "{{ output }}": 0.5,
+            "features": features,
+        }
+        {% endif %}
+
+    def save_model(self, path: Path) -> None:
+        """Save the trained model."""
+        import pickle
+
+        path.mkdir(parents=True, exist_ok=True)
+
+        {% if model_type == "bert_classifier" %}
+        self.model.save_pretrained(str(path))
+        self.tokenizer.save_pretrained(str(path))
+        {% else %}
+        with open(path / "model.pkl", "wb") as f:
+            pickle.dump(self.model, f)
+        with open(path / "scaler.pkl", "wb") as f:
+            pickle.dump(self.scaler, f)
+        {% endif %}
+
+        print(f"Model saved to {path}")
+
+    def load_model(self, path: Path) -> None:
+        """Load a trained model."""
+        import pickle
+
+        {% if model_type == "bert_classifier" %}
+        self.model = AutoModelForSequenceClassification.from_pretrained(str(path))
+        self.tokenizer = AutoTokenizer.from_pretrained(str(path))
+        {% else %}
+        with open(path / "model.pkl", "rb") as f:
+            self.model = pickle.load(f)
+        with open(path / "scaler.pkl", "rb") as f:
+            self.scaler = pickle.load(f)
+        {% endif %}
+
+        self.is_trained = True
+        print(f"Model loaded from {path}")
+
+
+{% if model_type == "bert_classifier" %}
+class Dataset(torch.utils.data.Dataset):
+    """Simple dataset for BERT training."""
+
+    def __init__(self, encodings, labels):
+        self.encodings = encodings
+        self.labels = labels
+
+    def __getitem__(self, idx):
+        item = {key: val[idx] for key, val in self.encodings.items()}
+        item["labels"] = torch.tensor(self.labels[idx])
+        return item
+
+    def __len__(self):
+        return len(self.labels)
+{% endif %}

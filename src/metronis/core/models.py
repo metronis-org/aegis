@@ -10,11 +10,17 @@ from pydantic import BaseModel, Field, validator
 
 class ApplicationType(str, Enum):
     """Supported AI application types."""
-    
+
     GENERIC = "generic"
     CHATBOT = "chatbot"
     RAG = "rag"
     AGENT = "agent"
+    RL_AGENT = "rl_agent"
+    CLINICAL_SUPPORT = "clinical_support"
+    DIAGNOSTIC = "diagnostic"
+    DOCUMENTATION = "documentation"
+    TRADING_AGENT = "trading_agent"
+    ROBOTICS = "robotics"
     OTHER = "other"
 
 
@@ -44,9 +50,40 @@ class UserContext(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class RetrievedContext(BaseModel):
+    """Retrieved context for RAG systems."""
+
+    source: str
+    content: str
+    relevance_score: float
+    citation: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RLStep(BaseModel):
+    """Single step in an RL episode."""
+
+    state: Dict[str, Any]
+    action: Dict[str, Any]
+    reward: float
+    next_state: Optional[Dict[str, Any]] = None
+    done: bool = False
+    info: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PolicyInfo(BaseModel):
+    """Information about the RL policy."""
+
+    policy_name: str
+    policy_version: Optional[str] = None
+    action_space: Dict[str, Any] = Field(default_factory=dict)
+    state_space: Dict[str, Any] = Field(default_factory=dict)
+    hyperparameters: Dict[str, Any] = Field(default_factory=dict)
+
+
 class AIProcessing(BaseModel):
     """AI processing information for a trace."""
-    
+
     model: str
     input: str
     output: str
@@ -56,13 +93,29 @@ class AIProcessing(BaseModel):
     tokens_used: Optional[int] = None
     latency_ms: Optional[int] = None
 
+    # RAG-specific fields
+    retrieved_contexts: List[RetrievedContext] = Field(default_factory=list)
+
+    # RL-specific fields
+    rl_episode: List[RLStep] = Field(default_factory=list)
+    policy_info: Optional[PolicyInfo] = None
+    cumulative_reward: Optional[float] = None
+    episode_length: Optional[int] = None
+
 
 class TraceMetadata(BaseModel):
     """Additional metadata for a trace."""
-    
+
     use_case: Optional[str] = None
-    domain: Optional[str] = None
+    domain: Optional[str] = None  # healthcare, trading, robotics, legal, etc.
+    specialty: Optional[str] = None  # cardiology, oncology, etc.
+    risk_level: Optional[str] = None  # critical, high, medium, low
     custom_fields: Dict[str, Any] = Field(default_factory=dict)
+
+    # Domain-specific context
+    patient_context: Optional[str] = None  # For healthcare
+    market_context: Optional[Dict[str, Any]] = None  # For trading
+    environment_context: Optional[Dict[str, Any]] = None  # For robotics
 
 
 class Trace(BaseModel):
