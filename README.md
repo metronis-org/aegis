@@ -11,6 +11,7 @@ Metronis is a comprehensive AI evaluation platform designed to ensure the safety
 - **Production Ready**: Horizontal scaling, monitoring, and enterprise security
 - **Developer Friendly**: Simple SDK integration with comprehensive documentation
 
+```
 aegis/
 ├── src/metronis/                    # Main source code
 │   ├── core/                        # Core domain models & interfaces
@@ -33,7 +34,7 @@ aegis/
 ├── migrations/                     # Database migrations (Alembic)
 ├── scripts/                        # Development scripts
 └── config files                    # Poetry, Docker Compose, etc.
-
+```
 
 ## 🏗️ Architecture
 
