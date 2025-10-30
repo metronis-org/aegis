@@ -1,0 +1,75 @@
+{
+  "dashboard": {
+    "title": "Metronis Aegis - System Overview",
+    "tags": ["metronis", "p2"],
+    "timezone": "utc",
+    "panels": [
+      {
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job='metronis-api'}[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "title": "API Response Time (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job='metronis-api'}[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "title": "Evaluation Queue Depth",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "redis_list_length{list='evaluations'}",
+            "legendFormat": "Queue Depth"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "title": "Worker Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(evaluations_processed_total[5m])",
+            "legendFormat": "Evaluations/sec"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends{datname='metronis'}",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job='metronis-api',status=~'5..'}[5m])",
+            "legendFormat": "5xx Errors"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8}
+      }
+    ]
+  }
+}

@@ -52,7 +52,10 @@ class KnowledgeBaseClient:
         self.request_times: List[float] = []
 
     async def get(
-        self, endpoint: str, params: Optional[Dict[str, Any]] = None, cache_key: Optional[str] = None
+        self,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        cache_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Make a GET request with caching and rate limiting."""
         # Check cache first
@@ -60,6 +63,7 @@ class KnowledgeBaseClient:
             cached = self.cache_client.get(cache_key)
             if cached:
                 import json
+
                 return json.loads(cached)
 
         # Rate limiting
@@ -79,6 +83,7 @@ class KnowledgeBaseClient:
         # Cache result
         if cache_key and self.cache_client:
             import json
+
             self.cache_client.setex(cache_key, self.cache_ttl, json.dumps(result))
 
         return result
@@ -142,19 +147,32 @@ class RxNormClient(KnowledgeBaseClient):
             for group in result["interactionTypeGroup"]:
                 for interaction_type in group.get("interactionType", []):
                     for pair in interaction_type.get("interactionPair", []):
-                        interactions.append({
-                            "severity": pair.get("severity", "unknown"),
-                            "description": pair.get("description", ""),
-                            "drug1": pair.get("interactionConcept", [{}])[0].get("minConceptItem", {}).get("name", ""),
-                            "drug2": pair.get("interactionConcept", [{}])[1].get("minConceptItem", {}).get("name", "") if len(pair.get("interactionConcept", [])) > 1 else "",
-                        })
+                        interactions.append(
+                            {
+                                "severity": pair.get("severity", "unknown"),
+                                "description": pair.get("description", ""),
+                                "drug1": pair.get("interactionConcept", [{}])[0]
+                                .get("minConceptItem", {})
+                                .get("name", ""),
+                                "drug2": (
+                                    pair.get("interactionConcept", [{}])[1]
+                                    .get("minConceptItem", {})
+                                    .get("name", "")
+                                    if len(pair.get("interactionConcept", [])) > 1
+                                    else ""
+                                ),
+                            }
+                        )
 
         return interactions
 
     async def check_medication_exists(self, medication_name: str) -> bool:
         """Check if a medication exists in RxNorm."""
         result = await self.search_drug(medication_name)
-        return "drugGroup" in result and len(result["drugGroup"].get("conceptGroup", [])) > 0
+        return (
+            "drugGroup" in result
+            and len(result["drugGroup"].get("conceptGroup", [])) > 0
+        )
 
 
 class SNOMEDClient(KnowledgeBaseClient):
@@ -167,9 +185,13 @@ class SNOMEDClient(KnowledgeBaseClient):
             cache_client=cache_client,
         )
 
-    async def search_concept(self, term: str, semantic_tag: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def search_concept(
+        self, term: str, semantic_tag: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Search for SNOMED concepts."""
-        cache_key = self._cache_key("snomed", "search", term.lower(), semantic_tag or "")
+        cache_key = self._cache_key(
+            "snomed", "search", term.lower(), semantic_tag or ""
+        )
 
         params = {"term": term, "limit": 20}
         if semantic_tag:
@@ -228,7 +250,7 @@ class SECEdgarClient(KnowledgeBaseClient):
 
         response = await self.http_client.get(
             url,
-            headers={"User-Agent": "Metronis AI Evaluation Platform info@metronis.ai"}
+            headers={"User-Agent": "Metronis AI Evaluation Platform info@metronis.ai"},
         )
         response.raise_for_status()
 
@@ -237,6 +259,7 @@ class SECEdgarClient(KnowledgeBaseClient):
         # Cache
         if self.cache_client:
             import json
+
             self.cache_client.setex(cache_key, self.cache_ttl, json.dumps(result))
 
         return result.get("filings", {}).get("recent", {})
@@ -283,9 +306,14 @@ class KnowledgeBaseService:
             return {"exists": len(results) > 0, "source": "fda"}
 
         else:
-            return {"exists": False, "error": f"Unknown knowledge base: {knowledge_base}"}
+            return {
+                "exists": False,
+                "error": f"Unknown knowledge base: {knowledge_base}",
+            }
 
-    async def check_interaction(self, entity1: str, entity2: str) -> Optional[Dict[str, Any]]:
+    async def check_interaction(
+        self, entity1: str, entity2: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Check for interactions between two entities.
 

@@ -3,17 +3,16 @@
 from typing import List
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-import structlog
 
-from metronis.core.models import Trace, EvaluationResult
-from metronis.core.exceptions import ValidationError, TraceNotFoundError
+from metronis.core.exceptions import TraceNotFoundError, ValidationError
+from metronis.core.models import EvaluationResult, Trace
 from metronis.services.ingestion.dependencies import (
-    get_trace_service,
     get_current_organization,
+    get_trace_service,
 )
-
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -21,7 +20,7 @@ router = APIRouter()
 
 class TraceResponse(BaseModel):
     """Response model for trace submission."""
-    
+
     trace_id: UUID
     status: str = "accepted"
     message: str = "Trace queued for evaluation"
@@ -29,7 +28,7 @@ class TraceResponse(BaseModel):
 
 class BatchTraceResponse(BaseModel):
     """Response model for batch trace submission."""
-    
+
     accepted: int
     rejected: int
     trace_ids: List[UUID]
@@ -43,25 +42,25 @@ async def submit_trace(
     organization=Depends(get_current_organization),
 ):
     """Submit a single trace for evaluation."""
-    
+
     try:
         # Set organization ID
         trace.organization_id = organization.organization_id
-        
+
         # Process the trace
         processed_trace = await trace_service.process_trace(trace)
-        
+
         logger.info(
             "Trace submitted successfully",
             trace_id=str(processed_trace.trace_id),
             organization_id=str(organization.organization_id),
         )
-        
+
         return TraceResponse(
             trace_id=processed_trace.trace_id,
             status="accepted",
         )
-        
+
     except ValidationError as e:
         logger.warning(
             "Trace validation failed",
@@ -91,38 +90,38 @@ async def submit_batch_traces(
     organization=Depends(get_current_organization),
 ):
     """Submit multiple traces for evaluation."""
-    
+
     accepted = 0
     rejected = 0
     trace_ids = []
     errors = []
-    
+
     for trace in traces:
         try:
             # Set organization ID
             trace.organization_id = organization.organization_id
-            
+
             # Process the trace
             processed_trace = await trace_service.process_trace(trace)
-            
+
             accepted += 1
             trace_ids.append(processed_trace.trace_id)
-            
+
         except ValidationError as e:
             rejected += 1
             errors.append(f"Trace validation failed: {e.message}")
-            
+
         except Exception as e:
             rejected += 1
             errors.append(f"Failed to process trace: {str(e)}")
-    
+
     logger.info(
         "Batch traces processed",
         accepted=accepted,
         rejected=rejected,
         organization_id=str(organization.organization_id),
     )
-    
+
     return BatchTraceResponse(
         accepted=accepted,
         rejected=rejected,
@@ -138,15 +137,17 @@ async def get_trace(
     organization=Depends(get_current_organization),
 ):
     """Get a trace by ID."""
-    
+
     try:
-        trace = await trace_service.get_trace(str(trace_id), organization.organization_id)
-        
+        trace = await trace_service.get_trace(
+            str(trace_id), organization.organization_id
+        )
+
         if not trace:
             raise TraceNotFoundError(f"Trace {trace_id} not found")
-        
+
         return trace
-        
+
     except TraceNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -171,21 +172,20 @@ async def get_evaluation(
     organization=Depends(get_current_organization),
 ):
     """Get evaluation result for a trace."""
-    
+
     try:
         result = await trace_service.get_evaluation_result(
-            str(trace_id), 
-            organization.organization_id
+            str(trace_id), organization.organization_id
         )
-        
+
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Evaluation result for trace {trace_id} not found",
             )
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(
             "Failed to get evaluation result",

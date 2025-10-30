@@ -6,8 +6,8 @@ Integrates with OpenAI and Anthropic APIs for LLM-based evaluations.
 
 import asyncio
 import json
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 import httpx
 import structlog
@@ -179,7 +179,9 @@ class LLMService:
         rendered = rendered.replace(
             "{{trace.ai_processing.output}}", trace.ai_processing.output
         )
-        rendered = rendered.replace("{{trace.ai_processing.model}}", trace.ai_processing.model)
+        rendered = rendered.replace(
+            "{{trace.ai_processing.model}}", trace.ai_processing.model
+        )
 
         # Add metadata context
         if trace.metadata.patient_context:

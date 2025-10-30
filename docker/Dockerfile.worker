@@ -1,33 +1,28 @@
+# Dockerfile for Metronis Aegis Worker
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    g++ \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install poetry
+# Copy requirements
+COPY pyproject.toml poetry.lock ./
 
-# Copy dependency files
-COPY pyproject.toml poetry.lock* ./
-
-# Configure Poetry
-RUN poetry config virtualenvs.create false
-
-# Install dependencies
-RUN poetry install --no-dev
+# Install Python dependencies
+RUN pip install --no-cache-dir poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-dev --no-interaction --no-ansi
 
 # Copy source code
-COPY src/ ./src/
+COPY src/ /app/src/
+COPY domains/ /app/domains/
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash metronis
-RUN chown -R metronis:metronis /app
-USER metronis
+# Set Python path
+ENV PYTHONPATH=/app/src
 
-# Default command (override in docker-compose)
-CMD ["celery", "-A", "metronis.services.evaluation.worker", "worker", "--loglevel=info"]
+# Run worker
+CMD ["python", "-m", "metronis.workers.evaluation_worker"]

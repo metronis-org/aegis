@@ -4,16 +4,19 @@ Domain: healthcare
 Model Type: bert_classifier
 """
 
-from typing import Any, Dict, List, Optional
-import numpy as np
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 
 # ML imports (will be installed as needed)
 try:
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
     import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
 except ImportError:
-    print("Warning: transformers not installed. Install with: pip install transformers torch")
+    print(
+        "Warning: transformers not installed. Install with: pip install transformers torch"
+    )
 
 
 class clinical_risk_predictor:
@@ -25,7 +28,9 @@ class clinical_risk_predictor:
     Training Data: synthetic_traces
     """
 
-    def __init__(self, model_path: Optional[Path] = None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, model_path: Optional[Path] = None, config: Optional[Dict[str, Any]] = None
+    ):
         """Initialize the model."""
         self.model_path = model_path
         self.config = config or {}
@@ -45,44 +50,40 @@ class clinical_risk_predictor:
         """
         features = {}
 
-        
         # Extract: input_text
         features["input_text"] = self._extract_input_text(trace)
-        
+
         # Extract: output_text
         features["output_text"] = self._extract_output_text(trace)
-        
+
         # Extract: patient_context
         features["patient_context"] = self._extract_patient_context(trace)
-        
 
         return features
 
-    
     def _extract_input_text(self, trace: Any) -> float:
         """Extract input_text from trace."""
         # TODO: Implement extraction logic
         # This is a placeholder that should be customized per domain
         return 0.0
 
-    
     def _extract_output_text(self, trace: Any) -> float:
         """Extract output_text from trace."""
         # TODO: Implement extraction logic
         # This is a placeholder that should be customized per domain
         return 0.0
 
-    
     def _extract_patient_context(self, trace: Any) -> float:
         """Extract patient_context from trace."""
         # TODO: Implement extraction logic
         # This is a placeholder that should be customized per domain
         return 0.0
 
-    
-
-    
-    def train(self, training_data: List[Dict[str, Any]], validation_data: Optional[List[Dict[str, Any]]] = None):
+    def train(
+        self,
+        training_data: List[Dict[str, Any]],
+        validation_data: Optional[List[Dict[str, Any]]] = None,
+    ):
         """
         Train the BERT classifier.
 
@@ -96,8 +97,7 @@ class clinical_risk_predictor:
         model_name = self.config.get("base_model", "bert-base-uncased")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_name,
-            num_labels=self.config.get("num_labels", 2)
+            model_name, num_labels=self.config.get("num_labels", 2)
         )
 
         # Prepare dataset
@@ -123,7 +123,9 @@ class clinical_risk_predictor:
             model=self.model,
             args=training_args,
             train_dataset=train_encodings,
-            eval_dataset=self._prepare_encodings(validation_data) if validation_data else None,
+            eval_dataset=(
+                self._prepare_encodings(validation_data) if validation_data else None
+            ),
         )
 
         # Train
@@ -140,16 +142,10 @@ class clinical_risk_predictor:
         labels = [item["label"] for item in data]
 
         encodings = self.tokenizer(
-            texts,
-            truncation=True,
-            padding=True,
-            max_length=512,
-            return_tensors="pt"
+            texts, truncation=True, padding=True, max_length=512, return_tensors="pt"
         )
 
         return Dataset(encodings, labels)
-
-    
 
     def predict(self, trace: Any) -> Dict[str, Any]:
         """
@@ -163,14 +159,13 @@ class clinical_risk_predictor:
 
         features = self.extract_features(trace)
 
-        
         # BERT classification
         inputs = self.tokenizer(
             trace.ai_processing.output,
             return_tensors="pt",
             truncation=True,
             padding=True,
-            max_length=512
+            max_length=512,
         )
 
         with torch.no_grad():
@@ -185,18 +180,14 @@ class clinical_risk_predictor:
             "probabilities": probabilities[0].tolist(),
         }
 
-        
-
     def save_model(self, path: Path) -> None:
         """Save the trained model."""
         import pickle
 
         path.mkdir(parents=True, exist_ok=True)
 
-        
         self.model.save_pretrained(str(path))
         self.tokenizer.save_pretrained(str(path))
-        
 
         print(f"Model saved to {path}")
 
@@ -204,14 +195,11 @@ class clinical_risk_predictor:
         """Load a trained model."""
         import pickle
 
-        
         self.model = AutoModelForSequenceClassification.from_pretrained(str(path))
         self.tokenizer = AutoTokenizer.from_pretrained(str(path))
-        
 
         self.is_trained = True
         print(f"Model loaded from {path}")
-
 
 
 class Dataset(torch.utils.data.Dataset):

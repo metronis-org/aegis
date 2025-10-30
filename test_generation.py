@@ -8,8 +8,8 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from metronis.core.domain import DomainRegistry
 from metronis.core.auto_generator import AutoGenerator
+from metronis.core.domain import DomainRegistry
 
 
 def main():

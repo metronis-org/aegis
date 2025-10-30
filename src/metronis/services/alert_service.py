@@ -132,9 +132,7 @@ class AlertService(IAlertService):
         for rule in triggered_rules:
             await self._send_alert_for_rule(trace, result, rule)
 
-    def _check_rules(
-        self, trace: Trace, result: EvaluationResult
-    ) -> List[AlertRule]:
+    def _check_rules(self, trace: Trace, result: EvaluationResult) -> List[AlertRule]:
         """Check which alert rules are triggered."""
         triggered = []
 
@@ -230,9 +228,7 @@ class AlertService(IAlertService):
             channels=rule.channels,
         )
 
-    def _format_alert_message(
-        self, trace: Trace, result: EvaluationResult
-    ) -> str:
+    def _format_alert_message(self, trace: Trace, result: EvaluationResult) -> str:
         """Format alert message."""
         msg = f"Evaluation Alert for Trace {trace.trace_id}\n\n"
         msg += f"Domain: {trace.metadata.domain}\n"

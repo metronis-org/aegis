@@ -6,8 +6,9 @@ Dynamics: stochastic
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-import numpy as np
+
 import gym
+import numpy as np
 from gym import spaces
 
 
@@ -28,11 +29,22 @@ class PatientOutcomeSimulator(gym.Env):
         self.config = config or {}
 
         # Define state space
-        self.state_space_def = {'type': 'dict', 'fields': ['patient_vitals', 'current_medications', 'diagnoses']}
+        self.state_space_def = {
+            "type": "dict",
+            "fields": ["patient_vitals", "current_medications", "diagnoses"],
+        }
         self.observation_space = self._create_observation_space()
 
         # Define action space
-        self.action_space_def = {'type': 'discrete', 'actions': ['prescribe_medication', 'order_test', 'refer_specialist', 'discharge']}
+        self.action_space_def = {
+            "type": "discrete",
+            "actions": [
+                "prescribe_medication",
+                "order_test",
+                "refer_specialist",
+                "discharge",
+            ],
+        }
         self.action_space = self._create_action_space()
 
         # Initialize state
@@ -47,48 +59,40 @@ class PatientOutcomeSimulator(gym.Env):
     def _create_observation_space(self) -> spaces.Space:
         """Create Gym observation space from state_space_def."""
         # This is a simplified version - should be customized per domain
-        
+
         space_dict = {}
-        
+
         # type: dict
-        
+
         space_dict["type"] = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(4,),
-            dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32
         )
-        
-        
+
         # fields: ['patient_vitals', 'current_medications', 'diagnoses']
-        
+
         space_dict["fields"] = spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(3,),
-            dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(3,), dtype=np.float32
         )
-        
-        
+
         return spaces.Dict(space_dict)
-        
 
     def _create_action_space(self) -> spaces.Space:
         """Create Gym action space from action_space_def."""
         # Simplified - should be customized
-        
+
         space_dict = {}
-        
+
         # type: discrete
         space_dict["type"] = spaces.Discrete(2)  # Placeholder
-        
+
         # actions: ['prescribe_medication', 'order_test', 'refer_specialist', 'discharge']
         space_dict["actions"] = spaces.Discrete(2)  # Placeholder
-        
-        return spaces.Dict(space_dict)
-        
 
-    def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[Any, Dict]:
+        return spaces.Dict(space_dict)
+
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[Dict] = None
+    ) -> Tuple[Any, Dict]:
         """Reset the environment to initial state."""
         super().reset(seed=seed)
 
@@ -134,7 +138,7 @@ class PatientOutcomeSimulator(gym.Env):
 
     def _get_initial_state(self) -> Dict[str, Any]:
         """Generate initial state."""
-        
+
         # Initialize patient state
         return {
             "vitals": self._sample_vitals(),
@@ -143,7 +147,6 @@ class PatientOutcomeSimulator(gym.Env):
             "diagnoses": [],
             "demographics": self._sample_demographics(),
         }
-        
 
     def _transition(self, state: Dict[str, Any], action: Any) -> Dict[str, Any]:
         """
@@ -153,12 +156,9 @@ class PatientOutcomeSimulator(gym.Env):
         """
         next_state = state.copy()
 
-        
         # Add stochasticity to transitions
         noise = np.random.normal(0, 0.1, size=len(state))
-        
 
-        
         # Patient response to treatment
         if "prescribe_medication" in action:
             med = action["prescribe_medication"]
@@ -171,9 +171,9 @@ class PatientOutcomeSimulator(gym.Env):
                 next_state["vitals"] = self._improve_vitals(state["vitals"])
             else:
                 # May worsen or stay same
-                next_state["vitals"] = self._worsen_vitals(state["vitals"], probability=0.1)
-
-        
+                next_state["vitals"] = self._worsen_vitals(
+                    state["vitals"], probability=0.1
+                )
 
         return next_state
 
@@ -187,12 +187,10 @@ class PatientOutcomeSimulator(gym.Env):
         """
         reward = 0.0
 
-        
         # Reward: patient_outcome_90_day
         # Patient outcome improvement
         vitals_improved = self._check_vitals_improvement(
-            state.get("vitals", {}),
-            next_state.get("vitals", {})
+            state.get("vitals", {}), next_state.get("vitals", {})
         )
         reward += 10.0 if vitals_improved else -5.0
 
@@ -204,19 +202,16 @@ class PatientOutcomeSimulator(gym.Env):
         if len(next_state["medications"]) > len(state["medications"]) + 1:
             reward -= 5.0  # Polypharmacy penalty
 
-        
-
         return reward
 
     def _is_terminal(self, state: Dict[str, Any]) -> bool:
         """Check if episode should terminate."""
-        
+
         # Episode ends if patient discharged or deceased
         if state.get("discharged", False):
             return True
         if self._patient_deceased(state):
             return True
-        
 
         return False
 
@@ -236,7 +231,6 @@ class PatientOutcomeSimulator(gym.Env):
 
     # Helper methods (domain-specific)
 
-    
     def _sample_vitals(self) -> Dict[str, float]:
         """Sample realistic vital signs."""
         return {
@@ -264,8 +258,6 @@ class PatientOutcomeSimulator(gym.Env):
             "weight": np.random.normal(70, 15),
             "height": np.random.normal(170, 10),
         }
-
-    
 
 
 # Register environment

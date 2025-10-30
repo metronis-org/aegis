@@ -120,14 +120,22 @@ class MetronisClient:
         # Build trace
         trace = Trace(
             trace_id=uuid4(),
-            organization_id=UUID(self.organization_id) if self.organization_id else uuid4(),
+            organization_id=(
+                UUID(self.organization_id) if self.organization_id else uuid4()
+            ),
             application_id=kwargs.get("application_id", uuid4()),
-            application_type=ApplicationType(application_type) if application_type else ApplicationType.GENERIC,
+            application_type=(
+                ApplicationType(application_type)
+                if application_type
+                else ApplicationType.GENERIC
+            ),
             ai_processing=AIProcessing(
                 model=model,
                 input=input,
                 output=output,
-                rl_episode=[RLStep(**step) for step in rl_episode] if rl_episode else [],
+                rl_episode=(
+                    [RLStep(**step) for step in rl_episode] if rl_episode else []
+                ),
                 **{k: v for k, v in kwargs.items() if k in AIProcessing.__fields__},
             ),
             metadata=TraceMetadata(
@@ -244,9 +252,7 @@ class MetronisClient:
         # Filter out exceptions
         return [r for r in results if isinstance(r, EvaluationResult)]
 
-    async def create_domain(
-        self, domain_spec: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def create_domain(self, domain_spec: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new domain from a specification.
 
@@ -324,6 +330,7 @@ class MetronisClient:
 
 
 # Integration helpers
+
 
 class LangChainCallback:
     """

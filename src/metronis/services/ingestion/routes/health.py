@@ -5,13 +5,12 @@ from pydantic import BaseModel
 
 from metronis.infrastructure.database import get_database
 
-
 router = APIRouter()
 
 
 class HealthResponse(BaseModel):
     """Health check response model."""
-    
+
     status: str
     version: str = "0.1.0"
     database: str = "unknown"
@@ -20,7 +19,7 @@ class HealthResponse(BaseModel):
 @router.get("/", response_model=HealthResponse)
 async def health_check():
     """Basic health check endpoint."""
-    
+
     # Check database connectivity
     try:
         db = get_database()
@@ -28,7 +27,7 @@ async def health_check():
         db_status = "healthy"
     except Exception:
         db_status = "unhealthy"
-    
+
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "degraded",
         database=db_status,
@@ -38,12 +37,12 @@ async def health_check():
 @router.get("/ready", response_model=HealthResponse)
 async def readiness_check():
     """Readiness check for Kubernetes."""
-    
+
     # More thorough checks for readiness
     try:
         db = get_database()
         await db.health_check()
-        
+
         return HealthResponse(
             status="ready",
             database="healthy",
@@ -58,7 +57,7 @@ async def readiness_check():
 @router.get("/live", response_model=HealthResponse)
 async def liveness_check():
     """Liveness check for Kubernetes."""
-    
+
     return HealthResponse(
         status="alive",
         database="unknown",  # Don't check DB for liveness
