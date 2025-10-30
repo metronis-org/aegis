@@ -1,0 +1,390 @@
+---
+# Prometheus ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: metronis
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+
+    rule_files:
+      - "/etc/prometheus/alerts/*.yml"
+
+    scrape_configs:
+      # Metronis API metrics
+      - job_name: 'metronis-api'
+        kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+            - metronis
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: metronis-api
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          regex: "8000"
+          action: keep
+
+      # Metronis Worker metrics
+      - job_name: 'metronis-worker'
+        kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+            - metronis
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          regex: metronis-worker
+          action: keep
+
+      # PostgreSQL metrics
+      - job_name: 'postgres'
+        static_configs:
+        - targets: ['postgres-exporter:9187']
+
+      # Redis metrics
+      - job_name: 'redis'
+        static_configs:
+        - targets: ['redis-exporter:9121']
+
+  alerts.yml: |
+    groups:
+    - name: metronis_alerts
+      interval: 30s
+      rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/sec for {{ $labels.instance }}"
+
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Critical evaluation issues
+      - alert: CriticalEvaluationIssues
+        expr: rate(evaluation_issues_total{severity="critical"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical evaluation issues detected"
+          description: "{{ $value }} critical issues per second"
+
+      # Low pass rate
+      - alert: LowPassRate
+        expr: rate(evaluations_passed_total[15m]) / rate(evaluations_total[15m]) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low evaluation pass rate"
+          description: "Pass rate is {{ $value }}%"
+
+      # High evaluation cost
+      - alert: HighEvaluationCost
+        expr: rate(evaluation_cost_total[1h]) > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High evaluation costs"
+          description: "Spending ${{ $value }}/hour on evaluations"
+
+      # Pod unavailable
+      - alert: PodDown
+        expr: up{job="metronis-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metronis API pod down"
+          description: "{{ $labels.instance }} is down"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage at {{ $value }}%"
+
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: metronis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        ports:
+        - containerPort: 9090
+          name: web
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: data
+          mountPath: /prometheus
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=30d'
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: prometheus-pvc
+
+---
+# Prometheus PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+  namespace: metronis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: metronis
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090
+
+---
+# Prometheus ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: metronis
+
+---
+# Prometheus ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+
+---
+# Prometheus ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: metronis
+
+---
+# Grafana ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: metronis
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: metronis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.0.0
+        ports:
+        - containerPort: 3000
+          name: web
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "admin"
+        - name: GF_INSTALL_PLUGINS
+          value: "grafana-piechart-panel"
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-pvc
+      - name: datasources
+        configMap:
+          name: grafana-datasources
+
+---
+# Grafana PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: metronis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Grafana Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: metronis
+spec:
+  selector:
+    app: grafana
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer
+
+---
+# AlertManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: metronis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.26.0
+        ports:
+        - containerPort: 9093
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+---
+# AlertManager Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: metronis
+spec:
+  selector:
+    app: alertmanager
+  ports:
+  - port: 9093
+    targetPort: 9093

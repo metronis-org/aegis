@@ -1,0 +1,72 @@
+# Prometheus Alert Rules for Metronis Aegis
+
+groups:
+  - name: metronis_alerts
+    interval: 30s
+    rules:
+      # API Alerts
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "API error rate is {{ $value }} errors/sec"
+
+      - alert: APIDown
+        expr: up{job="metronis-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API is down"
+          description: "Metronis API has been down for 1 minute"
+
+      # Queue Alerts
+      - alert: QueueBacklog
+        expr: redis_list_length{list="evaluations"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Evaluation queue backlog"
+          description: "Queue depth is {{ $value }} traces"
+
+      - alert: WorkerDown
+        expr: up{job="metronis-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Worker is down"
+          description: "Evaluation worker has been down for 2 minutes"
+
+      # Database Alerts
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_database_numbackends{datname="metronis"} > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool near limit"
+          description: "{{ $value }} active connections"
+
+      - alert: SlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ $value }}ms"
+
+      # Cost Alerts
+      - alert: HighLLMCost
+        expr: rate(llm_api_cost_total[1h]) > 10
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "High LLM API costs"
+          description: "Spending ${{ $value }}/hour on LLM API calls"

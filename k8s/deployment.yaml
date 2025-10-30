@@ -1,0 +1,376 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metronis
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metronis-config
+  namespace: metronis
+data:
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "metronis"
+  REDIS_URL: "redis://redis-service:6379"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  LOG_LEVEL: "INFO"
+
+---
+# Secret for sensitive data
+apiVersion: v1
+kind: Secret
+metadata:
+  name: metronis-secrets
+  namespace: metronis
+type: Opaque
+stringData:
+  POSTGRES_USER: "metronis"
+  POSTGRES_PASSWORD: "changeme"
+  OPENAI_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  SECRET_KEY: "your-secret-key-here"
+
+---
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: metronis
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: POSTGRES_PASSWORD
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 20Gi
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: metronis
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  clusterIP: None
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: metronis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: metronis
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+
+---
+# API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metronis-api
+  namespace: metronis
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: metronis-api
+  template:
+    metadata:
+      labels:
+        app: metronis-api
+    spec:
+      containers:
+      - name: api
+        image: metronis/api:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: POSTGRES_PASSWORD
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: REDIS_URL
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: OPENAI_API_KEY
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: ANTHROPIC_API_KEY
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: metronis-api-service
+  namespace: metronis
+spec:
+  selector:
+    app: metronis-api
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: LoadBalancer
+
+---
+# Worker Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metronis-worker
+  namespace: metronis
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: metronis-worker
+  template:
+    metadata:
+      labels:
+        app: metronis-worker
+    spec:
+      containers:
+      - name: worker
+        image: metronis/worker:latest
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: POSTGRES_HOST
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: metronis-config
+              key: REDIS_URL
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: metronis-secrets
+              key: OPENAI_API_KEY
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+---
+# Horizontal Pod Autoscaler for API
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metronis-api-hpa
+  namespace: metronis
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metronis-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Horizontal Pod Autoscaler for Workers
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metronis-worker-hpa
+  namespace: metronis
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metronis-worker
+  minReplicas: 5
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+
+---
+# Ingress for API
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: metronis-ingress
+  namespace: metronis
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  tls:
+  - hosts:
+    - api.metronis.ai
+    secretName: metronis-tls
+  rules:
+  - host: api.metronis.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: metronis-api-service
+            port:
+              number: 80

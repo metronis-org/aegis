@@ -1,4 +1,4 @@
-# Dockerfile for Metronis Aegis Worker
+# Dockerfile for Metronis Aegis API
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -19,10 +19,18 @@ RUN pip install --no-cache-dir poetry && \
 
 # Copy source code
 COPY src/ /app/src/
-COPY domains/ /app/domains/
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/
 
 # Set Python path
 ENV PYTHONPATH=/app/src
 
-# Run worker
-CMD ["python", "-m", "metronis.workers.evaluation_worker"]
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+
+# Run API
+CMD ["python", "-m", "uvicorn", "metronis.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

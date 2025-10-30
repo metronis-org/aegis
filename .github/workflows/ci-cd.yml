@@ -1,0 +1,292 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Run linting
+      run: |
+        poetry run black --check src/ tests/
+        poetry run isort --check src/ tests/
+        poetry run flake8 src/ tests/
+
+    - name: Run type checking
+      run: |
+        poetry run mypy src/
+
+    - name: Run unit tests
+      run: |
+        poetry run pytest tests/unit/ -v --cov=src/metronis --cov-report=xml
+
+    - name: Run integration tests
+      run: |
+        poetry run pytest tests/integration/ -v
+
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        flags: unittests
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Bandit security scan
+      run: |
+        pip install bandit
+        bandit -r src/ -f json -o bandit-report.json || true
+
+    - name: Upload Bandit report
+      uses: actions/upload-artifact@v3
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-api:
+    name: Build API Image
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=sha
+
+    - name: Build and push API image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.api
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  build-worker:
+    name: Build Worker Image
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=sha
+
+    - name: Build and push Worker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile.worker
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-api, build-worker]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    environment:
+      name: staging
+      url: https://staging.metronis.ai
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+        export KUBECONFIG=./kubeconfig
+
+    - name: Deploy to staging
+      run: |
+        kubectl set image deployment/metronis-api metronis-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:dev -n metronis-staging
+        kubectl set image deployment/metronis-worker metronis-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker:dev -n metronis-staging
+        kubectl rollout status deployment/metronis-api -n metronis-staging
+        kubectl rollout status deployment/metronis-worker -n metronis-staging
+
+    - name: Run smoke tests
+      run: |
+        curl -f https://staging.metronis.ai/health || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-api, build-worker]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://api.metronis.ai
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
+        export KUBECONFIG=./kubeconfig
+
+    - name: Deploy to production
+      run: |
+        kubectl set image deployment/metronis-api metronis-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:main -n metronis
+        kubectl set image deployment/metronis-worker metronis-worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker:main -n metronis
+        kubectl rollout status deployment/metronis-api -n metronis
+        kubectl rollout status deployment/metronis-worker -n metronis
+
+    - name: Run health checks
+      run: |
+        curl -f https://api.metronis.ai/health || exit 1
+
+    - name: Create deployment notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Production deployment completed'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      if: always()
+
+  e2e-tests:
+    name: End-to-End Tests
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Run E2E tests against staging
+      env:
+        METRONIS_API_URL: https://staging.metronis.ai
+        API_KEY: ${{ secrets.STAGING_API_KEY }}
+      run: |
+        poetry run pytest tests/e2e/ -v --env=staging

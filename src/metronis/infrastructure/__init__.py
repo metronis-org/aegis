@@ -1,1 +1,1 @@
-"""Infrastructure layer for Metronis platform."""
+"""Infrastructure layer."""
