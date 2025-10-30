@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 
-export const TraceExplorer: React.FC = () => {
+const TraceExplorer: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [domainFilter, setDomainFilter] = useState<string>('');
 
@@ -118,3 +118,5 @@ export const TraceExplorer: React.FC = () => {
     </div>
   );
 };
+
+export default TraceExplorer;

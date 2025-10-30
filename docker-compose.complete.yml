@@ -54,7 +54,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.api
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://metronis:metronis_dev_password@postgres:5432/metronis
       - REDIS_URL=redis://redis:6379/0
@@ -87,7 +87,7 @@ services:
         condition: service_healthy
     volumes:
       - ./src:/app/src
-      - ./domains:/app/domains
+      - ./domains:/app/src/domains  # Mount to /app/src/domains where worker expects it
 
   # Prometheus (NEW - P2)
   prometheus:
