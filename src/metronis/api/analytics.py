@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import and_, func, or_
+from sqlalchemy import Float, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from metronis.api.dependencies import get_current_user, get_db

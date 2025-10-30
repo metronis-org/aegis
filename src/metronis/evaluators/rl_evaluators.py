@@ -15,13 +15,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from metronis.core.interfaces import EvaluationModule
-from metronis.core.models import (
-    EvaluationIssue,
-    ModuleResult,
-    RLStep,
-    Severity,
-    Trace,
-)
+from metronis.core.models import EvaluationIssue, ModuleResult, RLStep, Severity, Trace
 
 
 class RewardShapingValidator(EvaluationModule):

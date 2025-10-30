@@ -11,12 +11,7 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from metronis.core.interfaces import EvaluationModule
-from metronis.core.models import (
-    EvaluationIssue,
-    ModuleResult,
-    Severity,
-    Trace,
-)
+from metronis.core.models import EvaluationIssue, ModuleResult, Severity, Trace
 from metronis.services.llm_service import LLMService, get_llm_service
 
 logger = structlog.get_logger(__name__)

@@ -2,16 +2,11 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     Column,
     DateTime,
-)
-from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
@@ -19,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
