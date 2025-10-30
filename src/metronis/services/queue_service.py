@@ -16,6 +16,7 @@ from redis.asyncio import Redis
 
 try:
     from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -231,9 +232,7 @@ class QueueService:
             logger.error("Failed to dequeue from Redis", error=str(e))
             return None
 
-    async def _dequeue_kafka(
-        self, consumer_group: str
-    ) -> Optional[Dict[str, Any]]:
+    async def _dequeue_kafka(self, consumer_group: str) -> Optional[Dict[str, Any]]:
         """Dequeue using Kafka."""
         # Initialize consumer if not already
         if self.kafka_consumer is None:
@@ -248,9 +247,7 @@ class QueueService:
 
         try:
             # Get next message with timeout
-            message = await asyncio.wait_for(
-                self.kafka_consumer.getone(), timeout=1.0
-            )
+            message = await asyncio.wait_for(self.kafka_consumer.getone(), timeout=1.0)
 
             # Parse message
             data = message.value
@@ -292,9 +289,7 @@ class QueueService:
 
         logger.debug("Message acknowledged", message_id=message_id)
 
-    async def _acknowledge_redis(
-        self, message_id: str, consumer_group: str
-    ) -> None:
+    async def _acknowledge_redis(self, message_id: str, consumer_group: str) -> None:
         """Acknowledge message in Redis."""
         await self.redis_client.xack(self.queue_name, consumer_group, message_id)
 
@@ -310,9 +305,7 @@ class QueueService:
             # This is a simplified version
             return 0
 
-    async def get_pending_messages(
-        self, consumer_group: str = "default"
-    ) -> int:
+    async def get_pending_messages(self, consumer_group: str = "default") -> int:
         """Get number of pending (unacknowledged) messages."""
         if self.backend == QueueBackend.REDIS:
             info = await self.redis_client.xpending(self.queue_name, consumer_group)
@@ -369,9 +362,7 @@ class PriorityQueueService(QueueService):
         message_id, priority = message_ids[0]
 
         # Read specific message
-        messages = await self.redis_client.xread(
-            {self.queue_name: message_id}, count=1
-        )
+        messages = await self.redis_client.xread({self.queue_name: message_id}, count=1)
 
         if not messages:
             return None

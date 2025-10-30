@@ -25,8 +25,8 @@ from metronis.core.models import (
     TraceMetadata,
 )
 from metronis.core.orchestrator import FiveTierOrchestrator, ModuleRegistry
-from metronis.services.knowledge_base_service import KnowledgeBaseService
 from metronis.sdk.client import MetronisClient
+from metronis.services.knowledge_base_service import KnowledgeBaseService
 
 
 async def demo_domain_registration():
@@ -145,18 +145,34 @@ async def demo_rl_evaluation():
             state={"cash": 100000, "positions": [], "market_price": 150.0},
             action={"place_order": {"symbol": "AAPL", "quantity": 100, "price": 150.0}},
             reward=0.0,
-            next_state={"cash": 85000, "positions": [{"symbol": "AAPL", "quantity": 100}], "market_price": 150.0},
+            next_state={
+                "cash": 85000,
+                "positions": [{"symbol": "AAPL", "quantity": 100}],
+                "market_price": 150.0,
+            },
             done=False,
         ),
         RLStep(
-            state={"cash": 85000, "positions": [{"symbol": "AAPL", "quantity": 100}], "market_price": 152.0},
+            state={
+                "cash": 85000,
+                "positions": [{"symbol": "AAPL", "quantity": 100}],
+                "market_price": 152.0,
+            },
             action={"do_nothing": True},
             reward=200.0,
-            next_state={"cash": 85000, "positions": [{"symbol": "AAPL", "quantity": 100}], "market_price": 152.0},
+            next_state={
+                "cash": 85000,
+                "positions": [{"symbol": "AAPL", "quantity": 100}],
+                "market_price": 152.0,
+            },
             done=False,
         ),
         RLStep(
-            state={"cash": 85000, "positions": [{"symbol": "AAPL", "quantity": 100}], "market_price": 155.0},
+            state={
+                "cash": 85000,
+                "positions": [{"symbol": "AAPL", "quantity": 100}],
+                "market_price": 155.0,
+            },
             action={"close_position": {"symbol": "AAPL", "quantity": 100}},
             reward=500.0,
             next_state={"cash": 100500, "positions": [], "market_price": 155.0},
@@ -196,7 +212,9 @@ async def demo_rl_evaluation():
 
     print(f"\nEpisode summary:")
     for i, step in enumerate(episode):
-        print(f"  Step {i}: action={list(step.action.keys())[0]}, reward=${step.reward}")
+        print(
+            f"  Step {i}: action={list(step.action.keys())[0]}, reward=${step.reward}"
+        )
 
     print(f"\nRL-specific evaluations would check:")
     print(f"  • Reward shaping (detect reward hacking)")
@@ -216,7 +234,8 @@ async def demo_sdk_usage():
     # For demo, we'll show the code without executing
 
     print("\nExample SDK usage:")
-    print("""
+    print(
+        """
     from metronis.sdk import MetronisClient
 
     # Initialize client
@@ -248,7 +267,8 @@ async def demo_sdk_usage():
     analytics = await client.get_analytics(domain="healthcare")
     print(f"Total traces: {analytics['total_traces']}")
     print(f"Pass rate: {analytics['pass_rate']:.1%}")
-    """)
+    """
+    )
 
 
 async def demo_integration():
@@ -258,7 +278,8 @@ async def demo_integration():
     print("=" * 80)
 
     print("\nLangChain Integration:")
-    print("""
+    print(
+        """
     from langchain.chains import LLMChain
     from metronis.sdk import MetronisClient, LangChainCallback
 
@@ -268,10 +289,12 @@ async def demo_integration():
     chain = LLMChain(llm=llm, callbacks=[callback])
     result = chain.run("What medication for diabetes?")
     # Automatically evaluated by Metronis
-    """)
+    """
+    )
 
     print("\nLlamaIndex Integration:")
-    print("""
+    print(
+        """
     from llama_index import ServiceContext, VectorStoreIndex
     from metronis.sdk import MetronisClient, LlamaIndexCallback
 
@@ -281,7 +304,8 @@ async def demo_integration():
     service_context = ServiceContext.from_defaults(callback_manager=callback)
     index = VectorStoreIndex.from_documents(docs, service_context=service_context)
     # All queries automatically evaluated
-    """)
+    """
+    )
 
 
 async def main():
@@ -317,7 +341,9 @@ async def main():
         print("=" * 80)
         print("\nNext steps:")
         print("  1. Start the API server: make dev")
-        print("  2. Generate your domain modules: python -m metronis.cli generate-domain <domain>")
+        print(
+            "  2. Generate your domain modules: python -m metronis.cli generate-domain <domain>"
+        )
         print("  3. Test with your own traces: python examples/test_trace.py")
         print("  4. View dashboard: http://localhost:8000/docs")
         print()
@@ -325,6 +351,7 @@ async def main():
     except Exception as e:
         print(f"\nError during demo: {e}")
         import traceback
+
         traceback.print_exc()
 
 

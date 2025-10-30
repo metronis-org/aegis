@@ -10,14 +10,15 @@ from typing import Optional
 import structlog
 from pydantic import BaseModel
 
+from metronis.core.models import AIProcessing, Trace
 from metronis.sdk.client import MetronisClient
-from metronis.core.models import Trace, AIProcessing
 
 logger = structlog.get_logger(__name__)
 
 
 class OnboardingStep(BaseModel):
     """A single onboarding step."""
+
     step_number: int
     title: str
     description: str
@@ -166,17 +167,17 @@ client.configure_alerts(
 
     async def start_onboarding(self) -> None:
         """Start the interactive onboarding process."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("🚀 Welcome to Metronis - AI Evaluation Platform")
-        print("="*80)
+        print("=" * 80)
         print("\nLet's get you started in 5 minutes!\n")
 
         for step in self.steps:
             await self._present_step(step)
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("✅ Onboarding Complete!")
-        print("="*80)
+        print("=" * 80)
         print("\nNext steps:")
         print("  1. Visit the dashboard: http://localhost:3000")
         print("  2. Check out the docs: https://docs.metronis.ai")
@@ -186,7 +187,7 @@ client.configure_alerts(
     async def _present_step(self, step: OnboardingStep) -> None:
         """Present a single onboarding step."""
         print(f"\n📍 Step {step.step_number}: {step.title}")
-        print("-"*80)
+        print("-" * 80)
         print(f"{step.description}\n")
 
         if step.code_example:
@@ -206,9 +207,9 @@ client.configure_alerts(
 
         This is a guided, interactive evaluation.
         """
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("🎯 Let's run your first evaluation!")
-        print("="*80)
+        print("=" * 80)
 
         print("\n1. We'll evaluate a simple LLM output")
         print("2. You'll see how Metronis catches issues")
@@ -216,7 +217,7 @@ client.configure_alerts(
 
         # Example 1: Safe output
         print("Example 1: Safe Output")
-        print("-"*40)
+        print("-" * 40)
 
         result1 = await self.client.evaluate_trace(
             input="What is 2+2?",
@@ -233,7 +234,7 @@ client.configure_alerts(
 
         # Example 2: Unsafe output (healthcare)
         print("\nExample 2: Unsafe Output (Healthcare)")
-        print("-"*40)
+        print("-" * 40)
 
         result2 = await self.client.evaluate_trace(
             input="I have chest pain. What should I do?",
@@ -267,9 +268,9 @@ async def quick_start(
         api_key: Metronis API key
         example_domain: Domain to use for example
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("⚡ Metronis Quickstart (30 seconds)")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Initialize client
     print("1. Initializing Metronis client...")
@@ -297,9 +298,9 @@ async def quick_start(
 
 def print_integration_examples():
     """Print integration examples for popular frameworks."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("📚 Integration Examples")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     examples = {
         "LangChain": """

@@ -1,14 +1,21 @@
 """FastAPI main application."""
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import structlog
 
-from metronis.api.routes import traces, evaluations
-from metronis.api.routes import billing, compliance, onboarding, websocket
-from metronis.api.routes import search, expert_review  # P2
 from metronis.api import analytics
+from metronis.api.routes import (  # P2
+    billing,
+    compliance,
+    evaluations,
+    expert_review,
+    onboarding,
+    search,
+    traces,
+    websocket,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +31,9 @@ app = FastAPI(
 # CORS middleware - load from config in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Load from metronis.config.settings.security.cors_origins
+    allow_origins=[
+        "*"
+    ],  # TODO: Load from metronis.config.settings.security.cors_origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,4 +82,5 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

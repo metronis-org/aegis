@@ -40,7 +40,9 @@ class RewardShapingValidator(EvaluationModule):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the validator."""
         super().__init__(config)
-        self.reward_consistency_threshold = self.config.get("consistency_threshold", 0.95)
+        self.reward_consistency_threshold = self.config.get(
+            "consistency_threshold", 0.95
+        )
         self.min_task_completion = self.config.get("min_task_completion", 0.5)
 
     def get_tier_level(self) -> int:
@@ -163,9 +165,8 @@ class RewardShapingValidator(EvaluationModule):
 
     def is_applicable(self, trace: Trace) -> bool:
         """Check if this module applies to the trace."""
-        return (
-            trace.application_type in ["rl_agent", "agent"]
-            and bool(trace.ai_processing.rl_episode)
+        return trace.application_type in ["rl_agent", "agent"] and bool(
+            trace.ai_processing.rl_episode
         )
 
 
@@ -321,9 +322,7 @@ class PolicyDivergenceDetector(EvaluationModule):
             metadata={"divergence": divergence},
         )
 
-    def _compute_divergence(
-        self, episode: List[RLStep], baseline_policy: Any
-    ) -> float:
+    def _compute_divergence(self, episode: List[RLStep], baseline_policy: Any) -> float:
         """
         Compute divergence between agent's actions and baseline.
 
@@ -432,10 +431,12 @@ class SafetyConstraintValidator(EvaluationModule):
                 max_value = constraint.get("max_value")
 
                 if field in step.action and step.action[field] > max_value:
-                    violations.append({
-                        "constraint": constraint.get("name"),
-                        "message": f"{field} exceeds maximum {max_value}",
-                    })
+                    violations.append(
+                        {
+                            "constraint": constraint.get("name"),
+                            "message": f"{field} exceeds maximum {max_value}",
+                        }
+                    )
 
         return violations
 

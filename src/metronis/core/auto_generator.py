@@ -143,10 +143,18 @@ class AutoGenerator:
 
         for model_config in spec.tier2_models:
             code = self.generate_tier2_model_scaffold(
-                model_config.model_dump() if hasattr(model_config, "model_dump") else model_config,
-                spec.domain_name
+                (
+                    model_config.model_dump()
+                    if hasattr(model_config, "model_dump")
+                    else model_config
+                ),
+                spec.domain_name,
             )
-            model_name = model_config.name if hasattr(model_config, "name") else model_config.get("name")
+            model_name = (
+                model_config.name
+                if hasattr(model_config, "name")
+                else model_config.get("name")
+            )
             file_path = tier2_dir / f"{self._to_snake_case(model_name)}.py"
 
             with open(file_path, "w") as f:
@@ -160,10 +168,18 @@ class AutoGenerator:
 
         for eval_config in spec.tier3_evals:
             prompt = self.generate_tier3_prompt(
-                eval_config.model_dump() if hasattr(eval_config, "model_dump") else eval_config,
-                spec.domain_name
+                (
+                    eval_config.model_dump()
+                    if hasattr(eval_config, "model_dump")
+                    else eval_config
+                ),
+                spec.domain_name,
             )
-            eval_name = eval_config.name if hasattr(eval_config, "name") else eval_config.get("name")
+            eval_name = (
+                eval_config.name
+                if hasattr(eval_config, "name")
+                else eval_config.get("name")
+            )
             file_path = tier3_dir / f"{self._to_snake_case(eval_name)}.txt"
 
             with open(file_path, "w") as f:
@@ -177,10 +193,18 @@ class AutoGenerator:
 
         for sim_config in spec.simulators:
             code = self.generate_simulator_scaffold(
-                sim_config.model_dump() if hasattr(sim_config, "model_dump") else sim_config,
-                spec.domain_name
+                (
+                    sim_config.model_dump()
+                    if hasattr(sim_config, "model_dump")
+                    else sim_config
+                ),
+                spec.domain_name,
             )
-            sim_name = sim_config.name if hasattr(sim_config, "name") else sim_config.get("name")
+            sim_name = (
+                sim_config.name
+                if hasattr(sim_config, "name")
+                else sim_config.get("name")
+            )
             file_path = sim_dir / f"{self._to_snake_case(sim_name)}.py"
 
             with open(file_path, "w") as f:
@@ -207,7 +231,10 @@ class AutoGenerator:
             tier1_init = []
             for file_path in generated["tier1_modules"]:
                 module_name = file_path.stem
-                class_name = self._to_pascal_case(module_name.replace("_validator", "")) + "Validator"
+                class_name = (
+                    self._to_pascal_case(module_name.replace("_validator", ""))
+                    + "Validator"
+                )
                 tier1_init.append(f"from .{module_name} import {class_name}")
 
             with open(tier1_dir / "__init__.py", "w") as f:

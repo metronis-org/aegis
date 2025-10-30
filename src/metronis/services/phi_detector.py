@@ -32,6 +32,7 @@ try:
     from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
     from presidio_anonymizer import AnonymizerEngine
     from presidio_anonymizer.entities import OperatorConfig
+
     PRESIDIO_AVAILABLE = True
 except ImportError:
     PRESIDIO_AVAILABLE = False
@@ -90,7 +91,9 @@ class PHIDetector:
             "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
             "date": re.compile(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b"),
             "zipcode": re.compile(r"\b\d{5}(?:-\d{4})?\b"),
-            "mrn": re.compile(r"\b(?:MRN|Medical Record Number)[:\s]*([A-Z0-9-]+)\b", re.IGNORECASE),
+            "mrn": re.compile(
+                r"\b(?:MRN|Medical Record Number)[:\s]*([A-Z0-9-]+)\b", re.IGNORECASE
+            ),
         }
 
         # Mapping for de-identified values (for consistent pseudonyms)
@@ -127,14 +130,16 @@ class PHIDetector:
 
         detections = []
         for result in results:
-            detections.append({
-                "entity_type": result.entity_type,
-                "text": text[result.start:result.end],
-                "start": result.start,
-                "end": result.end,
-                "score": result.score,
-                "recognition_metadata": result.recognition_metadata,
-            })
+            detections.append(
+                {
+                    "entity_type": result.entity_type,
+                    "text": text[result.start : result.end],
+                    "start": result.start,
+                    "end": result.end,
+                    "score": result.score,
+                    "recognition_metadata": result.recognition_metadata,
+                }
+            )
 
         return detections
 
@@ -144,18 +149,22 @@ class PHIDetector:
 
         for pattern_name, pattern in self.patterns.items():
             for match in pattern.finditer(text):
-                detections.append({
-                    "entity_type": pattern_name,
-                    "text": match.group(),
-                    "start": match.start(),
-                    "end": match.end(),
-                    "score": 0.8,  # Fixed score for regex
-                    "recognition_metadata": {"recognizer": "regex"},
-                })
+                detections.append(
+                    {
+                        "entity_type": pattern_name,
+                        "text": match.group(),
+                        "start": match.start(),
+                        "end": match.end(),
+                        "score": 0.8,  # Fixed score for regex
+                        "recognition_metadata": {"recognizer": "regex"},
+                    }
+                )
 
         return detections
 
-    async def de_identify(self, text: str, strategy: str = "mask") -> Tuple[str, List[Dict[str, Any]]]:
+    async def de_identify(
+        self, text: str, strategy: str = "mask"
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """
         De-identify PHI in text.
 
@@ -202,7 +211,9 @@ class PHIDetector:
         operators = {}
         if strategy == "mask":
             for entity_type in self.entities:
-                operators[entity_type] = OperatorConfig("replace", {"new_value": f"<{entity_type}>"})
+                operators[entity_type] = OperatorConfig(
+                    "replace", {"new_value": f"<{entity_type}>"}
+                )
         elif strategy == "pseudonymize":
             for entity_type in self.entities:
                 operators[entity_type] = OperatorConfig("hash", {"hash_type": "sha256"})
@@ -240,7 +251,9 @@ class PHIDetector:
             elif strategy == "pseudonymize":
                 # Generate consistent pseudonym
                 if original not in self.phi_mapping:
-                    self.phi_mapping[original] = self._generate_pseudonym(det["entity_type"])
+                    self.phi_mapping[original] = self._generate_pseudonym(
+                        det["entity_type"]
+                    )
                 replacement = self.phi_mapping[original]
             else:  # redact
                 replacement = "[REDACTED]"

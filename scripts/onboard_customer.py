@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''
+"""
 Customer Onboarding Automation
 
 Automates creation of new customer accounts with:
@@ -7,23 +7,24 @@ Automates creation of new customer accounts with:
 - API key generation
 - Database setup
 - Welcome email
-'''
+"""
 
 import argparse
 import secrets
 import string
 from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from metronis.db.session import SessionLocal
 from metronis.db.models import OrganizationModel
+from metronis.db.session import SessionLocal
 from metronis.services.billing_service import BillingService
 
 
 def generate_api_key(length: int = 32) -> str:
-    '''Generate secure API key.'''
+    """Generate secure API key."""
     alphabet = string.ascii_letters + string.digits
-    return 'metronis_' + ''.join(secrets.choice(alphabet) for _ in range(length))
+    return "metronis_" + "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def onboard_customer(
@@ -32,9 +33,9 @@ def onboard_customer(
     db: Session,
     create_stripe_customer: bool = True,
 ) -> dict:
-    '''Onboard new customer organization.'''
+    """Onboard new customer organization."""
 
-    print(f'Onboarding customer: {name} ({email})')
+    print(f"Onboarding customer: {name} ({email})")
 
     # 1. Create organization
     api_key = generate_api_key()
@@ -49,8 +50,8 @@ def onboard_customer(
     db.commit()
     db.refresh(organization)
 
-    print(f'[OK] Organization created: {organization.organization_id}')
-    print(f'[OK] API Key: {api_key}')
+    print(f"[OK] Organization created: {organization.organization_id}")
+    print(f"[OK] API Key: {api_key}")
 
     # 2. Create Stripe customer (optional)
     stripe_customer_id = None
@@ -58,39 +59,41 @@ def onboard_customer(
         try:
             billing = BillingService(db)
             stripe_customer_id = billing.create_customer(organization, email)
-            print(f'[OK] Stripe customer created: {stripe_customer_id}')
+            print(f"[OK] Stripe customer created: {stripe_customer_id}")
         except Exception as e:
-            print(f'[WARNING] Stripe customer creation failed: {e}')
+            print(f"[WARNING] Stripe customer creation failed: {e}")
 
     # 3. Send welcome email (placeholder)
-    print(f'[TODO] Send welcome email to {email}')
+    print(f"[TODO] Send welcome email to {email}")
 
     result = {
-        'organization_id': str(organization.organization_id),
-        'organization_name': name,
-        'api_key': api_key,
-        'email': email,
-        'stripe_customer_id': stripe_customer_id,
-        'created_at': organization.created_at.isoformat(),
+        "organization_id": str(organization.organization_id),
+        "organization_name": name,
+        "api_key": api_key,
+        "email": email,
+        "stripe_customer_id": stripe_customer_id,
+        "created_at": organization.created_at.isoformat(),
     }
 
-    print('\n' + '=' * 60)
-    print('ONBOARDING COMPLETE')
-    print('=' * 60)
+    print("\n" + "=" * 60)
+    print("ONBOARDING COMPLETE")
+    print("=" * 60)
     print(f'Organization ID: {result["organization_id"]}')
     print(f'API Key: {result["api_key"]}')
     print(f'Email: {result["email"]}')
-    print('=' * 60)
+    print("=" * 60)
 
     return result
 
 
 def main():
-    '''Main CLI entrypoint.'''
-    parser = argparse.ArgumentParser(description='Onboard new customer')
-    parser.add_argument('--name', required=True, help='Organization name')
-    parser.add_argument('--email', required=True, help='Customer email')
-    parser.add_argument('--no-stripe', action='store_true', help='Skip Stripe customer creation')
+    """Main CLI entrypoint."""
+    parser = argparse.ArgumentParser(description="Onboard new customer")
+    parser.add_argument("--name", required=True, help="Organization name")
+    parser.add_argument("--email", required=True, help="Customer email")
+    parser.add_argument(
+        "--no-stripe", action="store_true", help="Skip Stripe customer creation"
+    )
 
     args = parser.parse_args()
 
@@ -104,14 +107,14 @@ def main():
         )
 
         # Print integration instructions
-        print('\nNext steps:')
-        print('1. Share the API key with the customer')
-        print('2. Point them to documentation: https://docs.metronis.ai')
-        print('3. Schedule onboarding call if needed')
+        print("\nNext steps:")
+        print("1. Share the API key with the customer")
+        print("2. Point them to documentation: https://docs.metronis.ai")
+        print("3. Schedule onboarding call if needed")
 
     finally:
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

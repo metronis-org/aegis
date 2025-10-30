@@ -5,10 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from metronis.api.dependencies import get_db, get_current_user
-from metronis.infrastructure.repositories.evaluation_repository import EvaluationRepository
-from metronis.infrastructure.repositories.trace_repository import TraceRepository
+from metronis.api.dependencies import get_current_user, get_db
 from metronis.db.models import OrganizationModel
+from metronis.infrastructure.repositories.evaluation_repository import (
+    EvaluationRepository,
+)
+from metronis.infrastructure.repositories.trace_repository import TraceRepository
 
 router = APIRouter()
 

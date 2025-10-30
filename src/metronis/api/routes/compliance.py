@@ -1,28 +1,29 @@
-'''
+"""
 Compliance API Routes
-'''
+"""
+
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from metronis.db.session import get_db
 from metronis.api.dependencies import get_current_user
-from metronis.services.compliance_service import ComplianceService
 from metronis.db.models import OrganizationModel
+from metronis.db.session import get_db
+from metronis.services.compliance_service import ComplianceService
 
-router = APIRouter(prefix='/compliance', tags=['compliance'])
+router = APIRouter(prefix="/compliance", tags=["compliance"])
 
 
-@router.get('/fda-tplc')
+@router.get("/fda-tplc")
 async def generate_fda_report(
     start_date: datetime = None,
     end_date: datetime = None,
     current_user: OrganizationModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    '''Generate FDA Total Product Life Cycle report.'''
+    """Generate FDA Total Product Life Cycle report."""
     if not start_date:
         start_date = datetime.utcnow() - timedelta(days=30)
     if not end_date:
@@ -37,14 +38,14 @@ async def generate_fda_report(
     return report
 
 
-@router.get('/hipaa')
+@router.get("/hipaa")
 async def generate_hipaa_report(
     start_date: datetime = None,
     end_date: datetime = None,
     current_user: OrganizationModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    '''Generate HIPAA compliance report.'''
+    """Generate HIPAA compliance report."""
     if not start_date:
         start_date = datetime.utcnow() - timedelta(days=30)
     if not end_date:
@@ -59,14 +60,14 @@ async def generate_hipaa_report(
     return report
 
 
-@router.get('/soc2')
+@router.get("/soc2")
 async def generate_soc2_evidence(
     start_date: datetime = None,
     end_date: datetime = None,
     current_user: OrganizationModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    '''Generate SOC2 audit evidence.'''
+    """Generate SOC2 audit evidence."""
     if not start_date:
         start_date = datetime.utcnow() - timedelta(days=90)
     if not end_date:
@@ -81,14 +82,14 @@ async def generate_soc2_evidence(
     return report
 
 
-@router.get('/audit-trail')
+@router.get("/audit-trail")
 async def get_audit_trail(
     start_date: datetime = None,
     end_date: datetime = None,
     current_user: OrganizationModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    '''Get detailed audit trail.'''
+    """Get detailed audit trail."""
     if not start_date:
         start_date = datetime.utcnow() - timedelta(days=30)
     if not end_date:
@@ -100,4 +101,4 @@ async def get_audit_trail(
         start_date,
         end_date,
     )
-    return {'audit_trail': audit_trail, 'count': len(audit_trail)}
+    return {"audit_trail": audit_trail, "count": len(audit_trail)}

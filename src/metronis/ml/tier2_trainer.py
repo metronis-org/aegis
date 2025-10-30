@@ -16,14 +16,15 @@ from pydantic import BaseModel
 try:
     import torch
     import torch.nn as nn
-    from torch.utils.data import Dataset, DataLoader
-    from transformers import AutoModel, AutoTokenizer, AdamW
+    from torch.utils.data import DataLoader, Dataset
+    from transformers import AdamW, AutoModel, AutoTokenizer
+
     PYTORCH_AVAILABLE = True
 except ImportError:
     PYTORCH_AVAILABLE = False
     print("Warning: PyTorch not installed. ML training disabled.")
 
-from metronis.core.models import Trace, EvaluationResult
+from metronis.core.models import EvaluationResult, Trace
 
 logger = structlog.get_logger(__name__)
 
@@ -67,6 +68,7 @@ class TrainingMetrics(BaseModel):
 
 
 if PYTORCH_AVAILABLE:
+
     class TraceDataset(Dataset):
         """PyTorch dataset for traces."""
 
@@ -104,7 +106,6 @@ if PYTORCH_AVAILABLE:
                 "label": torch.tensor(item.label, dtype=torch.long),
             }
 
-
     class BERTClassifier(nn.Module):
         """BERT-based binary classifier for safety prediction."""
 
@@ -120,7 +121,6 @@ if PYTORCH_AVAILABLE:
             pooled_output = self.dropout(pooled_output)
             logits = self.classifier(pooled_output)
             return logits
-
 
     class RiskPredictor(nn.Module):
         """Risk prediction model with continuous risk score output."""
@@ -229,9 +229,7 @@ class Tier2ModelTrainer:
 
         return train_loader, val_loader
 
-    def train(
-        self, training_data: List[TrainingData]
-    ) -> List[TrainingMetrics]:
+    def train(self, training_data: List[TrainingData]) -> List[TrainingMetrics]:
         """
         Train the model.
 
@@ -323,7 +321,11 @@ class Tier2ModelTrainer:
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+        f1 = (
+            2 * (precision * recall) / (precision + recall)
+            if (precision + recall) > 0
+            else 0.0
+        )
 
         return TrainingMetrics(
             epoch=0,  # Will be set by caller
@@ -355,9 +357,7 @@ class Tier2ModelTrainer:
         torch.save(self.model.state_dict(), model_path)
 
         # Save config
-        config_path.write_text(
-            self.config.model_dump_json(indent=2), encoding="utf-8"
-        )
+        config_path.write_text(self.config.model_dump_json(indent=2), encoding="utf-8")
 
         logger.info("Model saved", path=str(model_path))
 

@@ -2,13 +2,15 @@
 
 from typing import Generator
 
-from fastapi import Depends, HTTPException, status, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from metronis.db.session import get_db
-from metronis.infrastructure.repositories.organization_repository import OrganizationRepository
 from metronis.db.models import OrganizationModel
+from metronis.db.session import get_db
+from metronis.infrastructure.repositories.organization_repository import (
+    OrganizationRepository,
+)
 
 security = HTTPBearer()
 

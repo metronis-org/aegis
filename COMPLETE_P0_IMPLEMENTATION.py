@@ -22,7 +22,6 @@ files_to_create = {
     # ========== DATABASE REPOSITORIES ==========
     "src/metronis/infrastructure/__init__.py": """\"\"\"Infrastructure layer.\"\"\"
 """,
-
     "src/metronis/infrastructure/repositories/__init__.py": """\"\"\"Database repositories.\"\"\"
 
 from metronis.infrastructure.repositories.trace_repository import TraceRepository
@@ -31,7 +30,6 @@ from metronis.infrastructure.repositories.organization_repository import Organiz
 
 __all__ = ["TraceRepository", "EvaluationRepository", "OrganizationRepository"]
 """,
-
     "src/metronis/infrastructure/repositories/trace_repository.py": """\"\"\"Trace repository for database operations.\"\"\"
 
 from datetime import datetime
@@ -113,7 +111,6 @@ class TraceRepository:
             return True
         return False
 """,
-
     "src/metronis/infrastructure/repositories/evaluation_repository.py": """\"\"\"Evaluation repository.\"\"\"
 
 from datetime import datetime
@@ -182,7 +179,6 @@ class EvaluationRepository:
             EvaluationResultModel.trace_id == trace_id
         ).order_by(EvaluationResultModel.created_at.desc()).first()
 """,
-
     "src/metronis/infrastructure/repositories/organization_repository.py": """\"\"\"Organization repository.\"\"\"
 
 from typing import Optional
@@ -223,11 +219,9 @@ class OrganizationRepository:
         self.db.refresh(org)
         return org
 """,
-
     # ========== API DEPENDENCIES ==========
     "src/metronis/api/__init__.py": """\"\"\"API package.\"\"\"
 """,
-
     "src/metronis/api/dependencies.py": """\"\"\"FastAPI dependencies.\"\"\"
 
 from typing import Generator
@@ -274,7 +268,6 @@ def get_current_user(
 
     return organization
 """,
-
     # ========== FASTAPI MAIN APP ==========
     "src/metronis/api/main.py": """\"\"\"FastAPI main application.\"\"\"
 
@@ -341,11 +334,9 @@ if __name__ == \"__main__\":
     import uvicorn
     uvicorn.run(app, host=\"0.0.0.0\", port=8000)
 """,
-
     # ========== API ROUTES ==========
     "src/metronis/api/routes/__init__.py": """\"\"\"API routes.\"\"\"
 """,
-
     "src/metronis/api/routes/traces.py": """\"\"\"Trace API routes.\"\"\"
 
 from typing import Optional
@@ -451,7 +442,6 @@ async def delete_trace(
 
     return {\"status\": \"deleted\", \"trace_id\": str(trace_id)}
 """,
-
     "src/metronis/api/routes/evaluations.py": """\"\"\"Evaluation API routes.\"\"\"
 
 from uuid import UUID
@@ -514,12 +504,11 @@ async def get_trace_evaluation(
 
     return evaluation
 """,
-
     # ========== WORKER COMPLETION ==========
     "src/metronis/workers/__init__.py": """\"\"\"Workers package.\"\"\"
 """,
-
 }
+
 
 # Create all files
 def create_files():
@@ -537,6 +526,7 @@ def create_files():
     print("1. Run: alembic upgrade head")
     print("2. Run: python src/metronis/api/main.py")
     print("3. Test: curl http://localhost:8000/health")
+
 
 if __name__ == "__main__":
     create_files()

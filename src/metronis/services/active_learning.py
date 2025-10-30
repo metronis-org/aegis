@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from metronis.core.models import Trace, EvaluationResult, ModuleResult, Severity
+from metronis.core.models import EvaluationResult, ModuleResult, Severity, Trace
 
 logger = structlog.get_logger(__name__)
 
@@ -184,7 +184,9 @@ class ActiveLearningPipeline:
         uncertainties = []
 
         # Tier-level uncertainties
-        for module_result in result.tier1_results + result.tier2_results + result.tier3_results:
+        for module_result in (
+            result.tier1_results + result.tier2_results + result.tier3_results
+        ):
             if module_result.confidence is not None:
                 uncertainty = 1.0 - module_result.confidence
                 uncertainties.append(uncertainty)
@@ -271,7 +273,8 @@ class ActiveLearningPipeline:
 
         # Filter incomplete tasks
         available_tasks = [
-            task for task in self.labeling_queue
+            task
+            for task in self.labeling_queue
             if not task.completed and (not domain or task.trace_id.startswith(domain))
         ]
 
@@ -296,6 +299,7 @@ class ActiveLearningPipeline:
         elif strategy == SamplingStrategy.RANDOM:
             # Random sampling
             import random
+
             random.shuffle(available_tasks)
 
         # Sort by priority, then by strategy
@@ -309,9 +313,7 @@ class ActiveLearningPipeline:
 
         return available_tasks[:batch_size]
 
-    async def submit_label(
-        self, task_id: str, label: ExpertLabel
-    ) -> None:
+    async def submit_label(self, task_id: str, label: ExpertLabel) -> None:
         """
         Submit an expert label for a task.
 
@@ -356,7 +358,8 @@ class ActiveLearningPipeline:
         # Count by priority
         priority_counts = {
             priority: sum(
-                1 for t in self.labeling_queue
+                1
+                for t in self.labeling_queue
                 if t.priority == priority and not t.completed
             )
             for priority in LabelingPriority
@@ -367,9 +370,9 @@ class ActiveLearningPipeline:
             "completed_tasks": completed_tasks,
             "pending_tasks": pending_tasks,
             "priority_breakdown": priority_counts,
-            "completion_rate": (completed_tasks / total_tasks * 100)
-            if total_tasks > 0
-            else 0.0,
+            "completion_rate": (
+                (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+            ),
         }
 
     async def get_model_improvement_metrics(self) -> Dict[str, Any]:

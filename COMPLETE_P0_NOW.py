@@ -6,12 +6,14 @@ Generates all remaining P0 files to make the system fully operational.
 import os
 from pathlib import Path
 
+
 def create_file(path: str, content: str):
     """Create a file with the given content."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding='utf-8')
+    file_path.write_text(content, encoding="utf-8")
     print(f"Created {path}")
+
 
 # =============================================================================
 # 1. Complete Worker Queue Consumption

@@ -15,12 +15,14 @@ This script generates ALL P2 files in one execution.
 import os
 from pathlib import Path
 
+
 def create_file(path: str, content: str):
     """Create a file with the given content."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding='utf-8')
+    file_path.write_text(content, encoding="utf-8")
     print(f"Created {path}")
+
 
 print("=" * 80)
 print("STARTING P2 IMPLEMENTATION - ALL FEATURES")
@@ -1676,25 +1678,20 @@ files_to_create = {
     # Elasticsearch
     "src/metronis/services/elasticsearch_service.py": elasticsearch_service,
     "src/metronis/api/routes/search.py": elasticsearch_routes,
-
     # Expert Review
     "src/metronis/services/expert_review_service.py": expert_review_service,
     "src/metronis/api/routes/expert_review.py": expert_review_routes,
-
     # Frontend Pages
     "frontend/src/pages/TraceExplorer.tsx": trace_explorer_tsx,
     "frontend/src/pages/ExpertReview.tsx": expert_review_tsx,
     "frontend/src/pages/Analytics.tsx": analytics_tsx,
-
     # Testing
     "pytest.ini": pytest_ini,
     "tests/unit/test_billing.py": test_billing,
     "tests/integration/test_api.py": test_api_integration,
-
     # Monitoring
     "monitoring/grafana/dashboards/system_overview.json": grafana_dashboard_json,
     "monitoring/prometheus/alerts.yml": prometheus_alerts,
-
     # Docker
     "docker-compose.complete.yml": docker_compose_complete,
     "frontend/Dockerfile": frontend_dockerfile,

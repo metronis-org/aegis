@@ -1,14 +1,14 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
-import pytest
 from typing import AsyncGenerator
 from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
-from metronis.core.models import Organization, Trace, AIProcessing
+from metronis.core.models import AIProcessing, Organization, Trace
 from metronis.infrastructure.database import Base
 
 
@@ -33,15 +33,15 @@ async def test_engine(postgres_container):
     database_url = postgres_container.get_connection_url().replace(
         "postgresql://", "postgresql+asyncpg://"
     )
-    
+
     engine = create_async_engine(database_url, echo=False)
-    
+
     # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     await engine.dispose()
 
 
@@ -53,7 +53,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with session_factory() as session:
         try:
             yield session

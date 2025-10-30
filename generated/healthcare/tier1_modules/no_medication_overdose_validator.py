@@ -3,8 +3,8 @@ Auto-generated Tier-1 validator for healthcare domain.
 Constraint: no_medication_overdose
 """
 
-from typing import Any, Dict, List, Optional
 import time
+from typing import Any, Dict, List, Optional
 
 from metronis.core.interfaces import EvaluationModule
 from metronis.core.models import EvaluationIssue, ModuleResult, Severity, Trace
@@ -21,9 +21,8 @@ class NoMedicationOverdoseValidator(EvaluationModule):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize the validator."""
         super().__init__(config)
-        
+
         self.max_daily_dose = self.config.get("max_daily_dose", 500)
-        
 
     def get_tier_level(self) -> int:
         """Return tier level."""
@@ -36,13 +35,11 @@ class NoMedicationOverdoseValidator(EvaluationModule):
         start_time = time.time()
         issues: List[EvaluationIssue] = []
 
-        
         # Range check validation
         entities = self._extract_entities(trace)
         for entity in entities:
             value = entity.get("value", 0)
-            
-            
+
             if value > self.max_daily_dose:
                 issues.append(
                     EvaluationIssue(
@@ -52,11 +49,6 @@ class NoMedicationOverdoseValidator(EvaluationModule):
                         details={"entity": entity, "limit": self.max_daily_dose},
                     )
                 )
-            
-            
-            
-
-        
 
         execution_time = (time.time() - start_time) * 1000  # Convert to ms
 
@@ -66,7 +58,9 @@ class NoMedicationOverdoseValidator(EvaluationModule):
             passed=len(issues) == 0,
             issues=issues,
             execution_time_ms=execution_time,
-            metadata={"entities_checked": len(entities) if 'entities' in locals() else 0},
+            metadata={
+                "entities_checked": len(entities) if "entities" in locals() else 0
+            },
         )
 
     def _extract_entities(self, trace: Trace) -> List[Dict[str, Any]]:
@@ -80,14 +74,15 @@ class NoMedicationOverdoseValidator(EvaluationModule):
         # TODO: Implement NER or regex-based extraction
 
         # For now, check metadata
-        if hasattr(trace.metadata, 'custom_fields'):
-            entities = trace.metadata.custom_fields.get('entities', [])
+        if hasattr(trace.metadata, "custom_fields"):
+            entities = trace.metadata.custom_fields.get("entities", [])
 
         return entities
 
     def is_applicable(self, trace: Trace) -> bool:
         """Check if this module applies to the trace."""
-        return (
-            trace.metadata.domain == "healthcare" or
-            trace.application_type in ["clinical_support", "diagnostic", "documentation"]  # Adjust per domain
-        )
+        return trace.metadata.domain == "healthcare" or trace.application_type in [
+            "clinical_support",
+            "diagnostic",
+            "documentation",
+        ]  # Adjust per domain

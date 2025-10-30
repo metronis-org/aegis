@@ -6,8 +6,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from metronis.db.models import EvaluationResultModel, EvaluationIssueModel
 from metronis.core.models import EvaluationResult, EvaluationStatus
+from metronis.db.models import EvaluationIssueModel, EvaluationResultModel
 
 
 class EvaluationRepository:
@@ -56,12 +56,17 @@ class EvaluationRepository:
 
     def get_by_id(self, evaluation_id: UUID) -> Optional[EvaluationResultModel]:
         """Get evaluation by ID."""
-        return self.db.query(EvaluationResultModel).filter(
-            EvaluationResultModel.evaluation_id == evaluation_id
-        ).first()
+        return (
+            self.db.query(EvaluationResultModel)
+            .filter(EvaluationResultModel.evaluation_id == evaluation_id)
+            .first()
+        )
 
     def get_by_trace_id(self, trace_id: UUID) -> Optional[EvaluationResultModel]:
         """Get latest evaluation for a trace."""
-        return self.db.query(EvaluationResultModel).filter(
-            EvaluationResultModel.trace_id == trace_id
-        ).order_by(EvaluationResultModel.created_at.desc()).first()
+        return (
+            self.db.query(EvaluationResultModel)
+            .filter(EvaluationResultModel.trace_id == trace_id)
+            .order_by(EvaluationResultModel.created_at.desc())
+            .first()
+        )

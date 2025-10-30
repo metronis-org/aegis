@@ -1,12 +1,13 @@
-'''
+"""
 Billing Service - Stripe Integration
 
 Handles subscription management, usage tracking, and invoicing.
-'''
+"""
 
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
+
 import stripe
 import structlog
 from sqlalchemy.orm import Session
@@ -16,24 +17,24 @@ from metronis.db.models import OrganizationModel, UsageMetricModel
 logger = structlog.get_logger(__name__)
 
 # Initialize Stripe
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY', 'sk_test_...')
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_...")
 
 
 class BillingService:
-    '''Manage billing, subscriptions, and usage tracking.'''
+    """Manage billing, subscriptions, and usage tracking."""
 
     def __init__(self, db: Session):
         self.db = db
 
     def create_customer(self, organization: OrganizationModel, email: str) -> str:
-        '''Create Stripe customer for organization.'''
+        """Create Stripe customer for organization."""
         try:
             customer = stripe.Customer.create(
                 email=email,
                 metadata={
-                    'organization_id': str(organization.organization_id),
-                    'organization_name': organization.name,
-                }
+                    "organization_id": str(organization.organization_id),
+                    "organization_name": organization.name,
+                },
             )
 
             # Store Stripe customer ID
@@ -41,7 +42,7 @@ class BillingService:
             self.db.commit()
 
             logger.info(
-                'Stripe customer created',
+                "Stripe customer created",
                 organization_id=str(organization.organization_id),
                 customer_id=customer.id,
             )
@@ -49,42 +50,42 @@ class BillingService:
             return customer.id
 
         except stripe.error.StripeError as e:
-            logger.error('Stripe customer creation failed', error=str(e))
+            logger.error("Stripe customer creation failed", error=str(e))
             raise
 
     def create_subscription(
         self,
         organization: OrganizationModel,
-        price_id: str = 'price_1234567890',  # Stripe price ID
+        price_id: str = "price_1234567890",  # Stripe price ID
     ) -> Dict:
-        '''Create subscription for organization.'''
+        """Create subscription for organization."""
         try:
             if not organization.stripe_customer_id:
-                raise ValueError('Organization has no Stripe customer')
+                raise ValueError("Organization has no Stripe customer")
 
             subscription = stripe.Subscription.create(
                 customer=organization.stripe_customer_id,
-                items=[{'price': price_id}],
+                items=[{"price": price_id}],
                 metadata={
-                    'organization_id': str(organization.organization_id),
-                }
+                    "organization_id": str(organization.organization_id),
+                },
             )
 
             logger.info(
-                'Subscription created',
+                "Subscription created",
                 organization_id=str(organization.organization_id),
                 subscription_id=subscription.id,
                 status=subscription.status,
             )
 
             return {
-                'subscription_id': subscription.id,
-                'status': subscription.status,
-                'current_period_end': subscription.current_period_end,
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "current_period_end": subscription.current_period_end,
             }
 
         except stripe.error.StripeError as e:
-            logger.error('Subscription creation failed', error=str(e))
+            logger.error("Subscription creation failed", error=str(e))
             raise
 
     def record_usage(
@@ -94,7 +95,7 @@ class BillingService:
         quantity: int,
         metadata: Optional[Dict] = None,
     ) -> None:
-        '''Record usage for billing.'''
+        """Record usage for billing."""
         usage_metric = UsageMetricModel(
             organization_id=organization_id,
             metric_type=metric_type,  # e.g., 'trace_evaluation', 'tier3_llm_call'
@@ -107,7 +108,7 @@ class BillingService:
         self.db.commit()
 
         logger.debug(
-            'Usage recorded',
+            "Usage recorded",
             organization_id=organization_id,
             metric_type=metric_type,
             quantity=quantity,
@@ -119,7 +120,7 @@ class BillingService:
         start_date: datetime,
         end_date: datetime,
     ) -> Dict:
-        '''Get usage summary for billing period.'''
+        """Get usage summary for billing period."""
         metrics = (
             self.db.query(UsageMetricModel)
             .filter(
@@ -136,26 +137,26 @@ class BillingService:
         for metric in metrics:
             metric_type = metric.metric_type
             if metric_type not in summary:
-                summary[metric_type] = {'count': 0, 'cost': 0.0}
+                summary[metric_type] = {"count": 0, "cost": 0.0}
 
             # Pricing (example)
             unit_cost = {
-                'trace_evaluation': 0.01,  # $0.01 per trace
-                'tier3_llm_call': 0.10,    # $0.10 per LLM call
-                'expert_label': 0.50,       # $0.50 per expert label
+                "trace_evaluation": 0.01,  # $0.01 per trace
+                "tier3_llm_call": 0.10,  # $0.10 per LLM call
+                "expert_label": 0.50,  # $0.50 per expert label
             }.get(metric_type, 0.0)
 
-            summary[metric_type]['count'] += metric.quantity
+            summary[metric_type]["count"] += metric.quantity
             cost = metric.quantity * unit_cost
-            summary[metric_type]['cost'] += cost
+            summary[metric_type]["cost"] += cost
             total_cost += cost
 
         return {
-            'organization_id': organization_id,
-            'start_date': start_date.isoformat(),
-            'end_date': end_date.isoformat(),
-            'metrics': summary,
-            'total_cost': round(total_cost, 2),
+            "organization_id": organization_id,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "metrics": summary,
+            "total_cost": round(total_cost, 2),
         }
 
     def create_invoice(
@@ -164,7 +165,7 @@ class BillingService:
         start_date: datetime,
         end_date: datetime,
     ) -> Dict:
-        '''Create invoice for billing period.'''
+        """Create invoice for billing period."""
         usage_summary = self.get_usage_summary(
             str(organization.organization_id),
             start_date,
@@ -173,12 +174,12 @@ class BillingService:
 
         try:
             # Create invoice items in Stripe
-            for metric_type, data in usage_summary['metrics'].items():
-                if data['cost'] > 0:
+            for metric_type, data in usage_summary["metrics"].items():
+                if data["cost"] > 0:
                     stripe.InvoiceItem.create(
                         customer=organization.stripe_customer_id,
-                        amount=int(data['cost'] * 100),  # Cents
-                        currency='usd',
+                        amount=int(data["cost"] * 100),  # Cents
+                        currency="usd",
                         description=f"{metric_type}: {data['count']} units",
                     )
 
@@ -191,92 +192,96 @@ class BillingService:
             invoice = stripe.Invoice.finalize_invoice(invoice.id)
 
             logger.info(
-                'Invoice created',
+                "Invoice created",
                 organization_id=str(organization.organization_id),
                 invoice_id=invoice.id,
                 amount_due=invoice.amount_due / 100,
             )
 
             return {
-                'invoice_id': invoice.id,
-                'amount_due': invoice.amount_due / 100,
-                'invoice_url': invoice.hosted_invoice_url,
-                'status': invoice.status,
+                "invoice_id": invoice.id,
+                "amount_due": invoice.amount_due / 100,
+                "invoice_url": invoice.hosted_invoice_url,
+                "status": invoice.status,
             }
 
         except stripe.error.StripeError as e:
-            logger.error('Invoice creation failed', error=str(e))
+            logger.error("Invoice creation failed", error=str(e))
             raise
 
     def handle_webhook(self, payload: bytes, sig_header: str) -> Dict:
-        '''Handle Stripe webhook events.'''
-        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', 'whsec_...')
+        """Handle Stripe webhook events."""
+        webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_...")
 
         try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, webhook_secret
-            )
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
 
-            logger.info('Webhook received', event_type=event['type'])
+            logger.info("Webhook received", event_type=event["type"])
 
             # Handle different event types
-            if event['type'] == 'invoice.payment_succeeded':
-                self._handle_payment_succeeded(event['data']['object'])
+            if event["type"] == "invoice.payment_succeeded":
+                self._handle_payment_succeeded(event["data"]["object"])
 
-            elif event['type'] == 'invoice.payment_failed':
-                self._handle_payment_failed(event['data']['object'])
+            elif event["type"] == "invoice.payment_failed":
+                self._handle_payment_failed(event["data"]["object"])
 
-            elif event['type'] == 'customer.subscription.deleted':
-                self._handle_subscription_deleted(event['data']['object'])
+            elif event["type"] == "customer.subscription.deleted":
+                self._handle_subscription_deleted(event["data"]["object"])
 
-            return {'status': 'success'}
+            return {"status": "success"}
 
         except Exception as e:
-            logger.error('Webhook handling failed', error=str(e))
+            logger.error("Webhook handling failed", error=str(e))
             raise
 
     def _handle_payment_succeeded(self, invoice):
-        '''Handle successful payment.'''
-        customer_id = invoice['customer']
-        org = self.db.query(OrganizationModel).filter(
-            OrganizationModel.stripe_customer_id == customer_id
-        ).first()
+        """Handle successful payment."""
+        customer_id = invoice["customer"]
+        org = (
+            self.db.query(OrganizationModel)
+            .filter(OrganizationModel.stripe_customer_id == customer_id)
+            .first()
+        )
 
         if org:
             logger.info(
-                'Payment succeeded',
+                "Payment succeeded",
                 organization_id=str(org.organization_id),
-                invoice_id=invoice['id'],
-                amount=invoice['amount_paid'] / 100,
+                invoice_id=invoice["id"],
+                amount=invoice["amount_paid"] / 100,
             )
             # Update organization status, send receipt email, etc.
 
     def _handle_payment_failed(self, invoice):
-        '''Handle failed payment.'''
-        customer_id = invoice['customer']
-        org = self.db.query(OrganizationModel).filter(
-            OrganizationModel.stripe_customer_id == customer_id
-        ).first()
+        """Handle failed payment."""
+        customer_id = invoice["customer"]
+        org = (
+            self.db.query(OrganizationModel)
+            .filter(OrganizationModel.stripe_customer_id == customer_id)
+            .first()
+        )
 
         if org:
             logger.warning(
-                'Payment failed',
+                "Payment failed",
                 organization_id=str(org.organization_id),
-                invoice_id=invoice['id'],
+                invoice_id=invoice["id"],
             )
             # Send notification, suspend service if needed
 
     def _handle_subscription_deleted(self, subscription):
-        '''Handle subscription cancellation.'''
-        customer_id = subscription['customer']
-        org = self.db.query(OrganizationModel).filter(
-            OrganizationModel.stripe_customer_id == customer_id
-        ).first()
+        """Handle subscription cancellation."""
+        customer_id = subscription["customer"]
+        org = (
+            self.db.query(OrganizationModel)
+            .filter(OrganizationModel.stripe_customer_id == customer_id)
+            .first()
+        )
 
         if org:
             logger.info(
-                'Subscription cancelled',
+                "Subscription cancelled",
                 organization_id=str(org.organization_id),
-                subscription_id=subscription['id'],
+                subscription_id=subscription["id"],
             )
             # Handle subscription end, data retention, etc.

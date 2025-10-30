@@ -3,13 +3,13 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from metronis.api.dependencies import get_db, get_current_user
+from metronis.api.dependencies import get_current_user, get_db
 from metronis.core.models import Trace
-from metronis.infrastructure.repositories.trace_repository import TraceRepository
 from metronis.db.models import OrganizationModel
+from metronis.infrastructure.repositories.trace_repository import TraceRepository
 
 router = APIRouter()
 

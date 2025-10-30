@@ -10,11 +10,11 @@ __version__ = "0.1.0"
 __author__ = "Metronis Team"
 __email__ = "team@metronis.ai"
 
-from metronis.core.models import Trace, EvaluationResult
 from metronis.core.interfaces import EvaluationModule
+from metronis.core.models import EvaluationResult, Trace
 
 __all__ = [
     "Trace",
-    "EvaluationResult", 
+    "EvaluationResult",
     "EvaluationModule",
 ]

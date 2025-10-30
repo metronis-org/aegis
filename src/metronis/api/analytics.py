@@ -9,16 +9,16 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from metronis.api.dependencies import get_db, get_current_user
-from metronis.db.models import (
-    TraceModel,
-    EvaluationResultModel,
-    EvaluationIssueModel,
-)
+from metronis.api.dependencies import get_current_user, get_db
 from metronis.core.models import Severity
+from metronis.db.models import (
+    EvaluationIssueModel,
+    EvaluationResultModel,
+    TraceModel,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -26,12 +26,14 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 # Response Models
 class MetricValue(BaseModel):
     """A single metric value."""
+
     timestamp: datetime
     value: float
 
 
 class TimeSeriesMetric(BaseModel):
     """Time series metric data."""
+
     metric_name: str
     data_points: List[MetricValue]
     aggregation: str  # avg, sum, count, etc.
@@ -39,6 +41,7 @@ class TimeSeriesMetric(BaseModel):
 
 class DomainStats(BaseModel):
     """Statistics for a domain."""
+
     domain_name: str
     total_traces: int
     total_evaluations: int
@@ -51,6 +54,7 @@ class DomainStats(BaseModel):
 
 class IssueBreakdown(BaseModel):
     """Breakdown of issues by type."""
+
     issue_type: str
     count: int
     severity: str
@@ -59,6 +63,7 @@ class IssueBreakdown(BaseModel):
 
 class CostBreakdown(BaseModel):
     """Cost breakdown by tier."""
+
     tier: int
     tier_name: str
     total_cost: float
@@ -68,6 +73,7 @@ class CostBreakdown(BaseModel):
 
 class ModelPerformance(BaseModel):
     """Performance metrics for AI models."""
+
     model_name: str
     total_traces: int
     pass_rate: float
@@ -77,6 +83,7 @@ class ModelPerformance(BaseModel):
 
 class AlertStats(BaseModel):
     """Alert statistics."""
+
     total_alerts: int
     critical_alerts: int
     warning_alerts: int
@@ -86,6 +93,7 @@ class AlertStats(BaseModel):
 
 class AnalyticsSummary(BaseModel):
     """Overall analytics summary."""
+
     total_traces: int
     total_evaluations: int
     overall_pass_rate: float
@@ -101,7 +109,7 @@ async def get_analytics_summary(
     end_date: Optional[datetime] = Query(None),
     domain: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get overall analytics summary.
@@ -125,9 +133,9 @@ async def get_analytics_summary(
         query_filters.append(TraceModel.domain == domain)
 
     # Get total traces
-    total_traces = await db.scalar(
-        func.count(TraceModel.trace_id).filter(*query_filters)
-    ) or 0
+    total_traces = (
+        await db.scalar(func.count(TraceModel.trace_id).filter(*query_filters)) or 0
+    )
 
     # Get evaluation stats
     eval_stats = await db.execute(
@@ -140,34 +148,45 @@ async def get_analytics_summary(
     total_evaluations = eval_stats or 0
 
     # Calculate pass rate
-    passed_evals = await db.scalar(
-        func.count(EvaluationResultModel.evaluation_id).filter(
-            EvaluationResultModel.trace_id.in_(
-                db.query(TraceModel.trace_id).filter(*query_filters)
-            ),
-            EvaluationResultModel.overall_passed == True,
+    passed_evals = (
+        await db.scalar(
+            func.count(EvaluationResultModel.evaluation_id).filter(
+                EvaluationResultModel.trace_id.in_(
+                    db.query(TraceModel.trace_id).filter(*query_filters)
+                ),
+                EvaluationResultModel.overall_passed == True,
+            )
         )
-    ) or 0
+        or 0
+    )
 
-    pass_rate = (passed_evals / total_evaluations * 100) if total_evaluations > 0 else 0.0
+    pass_rate = (
+        (passed_evals / total_evaluations * 100) if total_evaluations > 0 else 0.0
+    )
 
     # Calculate avg execution time
-    avg_time = await db.scalar(
-        func.avg(EvaluationResultModel.total_execution_time_ms).filter(
-            EvaluationResultModel.trace_id.in_(
-                db.query(TraceModel.trace_id).filter(*query_filters)
+    avg_time = (
+        await db.scalar(
+            func.avg(EvaluationResultModel.total_execution_time_ms).filter(
+                EvaluationResultModel.trace_id.in_(
+                    db.query(TraceModel.trace_id).filter(*query_filters)
+                )
             )
         )
-    ) or 0.0
+        or 0.0
+    )
 
     # Calculate total cost
-    total_cost = await db.scalar(
-        func.sum(EvaluationResultModel.cost).filter(
-            EvaluationResultModel.trace_id.in_(
-                db.query(TraceModel.trace_id).filter(*query_filters)
+    total_cost = (
+        await db.scalar(
+            func.sum(EvaluationResultModel.cost).filter(
+                EvaluationResultModel.trace_id.in_(
+                    db.query(TraceModel.trace_id).filter(*query_filters)
+                )
             )
         )
-    ) or 0.0
+        or 0.0
+    )
 
     # Get domain-specific stats
     domain_stats = await get_domain_statistics(
@@ -187,13 +206,15 @@ async def get_analytics_summary(
 
 @router.get("/timeseries", response_model=List[TimeSeriesMetric])
 async def get_timeseries_metrics(
-    metric: str = Query(..., description="Metric to retrieve: pass_rate, cost, latency, issue_count"),
+    metric: str = Query(
+        ..., description="Metric to retrieve: pass_rate, cost, latency, issue_count"
+    ),
     granularity: str = Query("day", description="Granularity: hour, day, week"),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     domain: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get time series metrics.
@@ -239,7 +260,7 @@ async def get_issues_breakdown(
     end_date: Optional[datetime] = Query(None),
     domain: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get breakdown of issues by type and severity.
@@ -296,7 +317,7 @@ async def get_cost_breakdown(
     end_date: Optional[datetime] = Query(None),
     domain: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get cost breakdown by evaluation tier.
@@ -351,7 +372,7 @@ async def get_model_performance(
     end_date: Optional[datetime] = Query(None),
     domain: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get performance metrics for different AI models.
@@ -368,9 +389,9 @@ async def get_model_performance(
         db.query(
             TraceModel.model,
             func.count(TraceModel.trace_id).label("total_traces"),
-            func.avg(
-                func.cast(EvaluationResultModel.overall_passed, Float)
-            ).label("pass_rate"),
+            func.avg(func.cast(EvaluationResultModel.overall_passed, Float)).label(
+                "pass_rate"
+            ),
         )
         .join(EvaluationResultModel)
         .filter(
@@ -393,37 +414,45 @@ async def get_model_performance(
     performance_list = []
     for row in model_data:
         # Get issue count for this model
-        issue_count = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .join(EvaluationResultModel)
-            .join(TraceModel)
-            .filter(
-                TraceModel.model == row.model,
-                TraceModel.organization_id == current_user.organization_id,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        issue_count = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id)
+                .join(EvaluationResultModel)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.model == row.model,
+                    TraceModel.organization_id == current_user.organization_id,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        critical_count = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .join(EvaluationResultModel)
-            .join(TraceModel)
-            .filter(
-                TraceModel.model == row.model,
-                EvaluationIssueModel.severity == Severity.CRITICAL.value,
-                TraceModel.organization_id == current_user.organization_id,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        critical_count = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id)
+                .join(EvaluationResultModel)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.model == row.model,
+                    EvaluationIssueModel.severity == Severity.CRITICAL.value,
+                    TraceModel.organization_id == current_user.organization_id,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
         performance_list.append(
             ModelPerformance(
                 model_name=row.model,
                 total_traces=row.total_traces,
                 pass_rate=row.pass_rate * 100 if row.pass_rate else 0.0,
-                avg_issues_per_trace=issue_count / row.total_traces if row.total_traces > 0 else 0.0,
+                avg_issues_per_trace=(
+                    issue_count / row.total_traces if row.total_traces > 0 else 0.0
+                ),
                 critical_issues=critical_count,
             )
         )
@@ -436,7 +465,7 @@ async def get_alert_statistics(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get alert statistics.
@@ -458,6 +487,7 @@ async def get_alert_statistics(
 
 
 # Helper functions
+
 
 async def get_domain_statistics(
     db: AsyncSession,
@@ -484,87 +514,108 @@ async def get_domain_statistics(
     domain_stats = []
     for domain in domains:
         # Get stats for this domain
-        total_traces = await db.scalar(
-            func.count(TraceModel.trace_id).filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        total_traces = (
+            await db.scalar(
+                func.count(TraceModel.trace_id).filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        total_evals = await db.scalar(
-            func.count(EvaluationResultModel.evaluation_id)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        total_evals = (
+            await db.scalar(
+                func.count(EvaluationResultModel.evaluation_id)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        passed_evals = await db.scalar(
-            func.count(EvaluationResultModel.evaluation_id)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                EvaluationResultModel.overall_passed == True,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        passed_evals = (
+            await db.scalar(
+                func.count(EvaluationResultModel.evaluation_id)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    EvaluationResultModel.overall_passed == True,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
         pass_rate = (passed_evals / total_evals * 100) if total_evals > 0 else 0.0
 
-        avg_time = await db.scalar(
-            func.avg(EvaluationResultModel.total_execution_time_ms)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        avg_time = (
+            await db.scalar(
+                func.avg(EvaluationResultModel.total_execution_time_ms)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0.0
+            or 0.0
+        )
 
-        critical_issues = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .join(EvaluationResultModel)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                EvaluationIssueModel.severity == Severity.CRITICAL.value,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        critical_issues = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id)
+                .join(EvaluationResultModel)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    EvaluationIssueModel.severity == Severity.CRITICAL.value,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        high_issues = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .join(EvaluationResultModel)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                EvaluationIssueModel.severity == Severity.HIGH.value,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        high_issues = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id)
+                .join(EvaluationResultModel)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    EvaluationIssueModel.severity == Severity.HIGH.value,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0
+            or 0
+        )
 
-        total_cost = await db.scalar(
-            func.sum(EvaluationResultModel.cost)
-            .join(TraceModel)
-            .filter(
-                TraceModel.organization_id == organization_id,
-                TraceModel.domain == domain,
-                TraceModel.created_at >= start_date,
-                TraceModel.created_at <= end_date,
+        total_cost = (
+            await db.scalar(
+                func.sum(EvaluationResultModel.cost)
+                .join(TraceModel)
+                .filter(
+                    TraceModel.organization_id == organization_id,
+                    TraceModel.domain == domain,
+                    TraceModel.created_at >= start_date,
+                    TraceModel.created_at <= end_date,
+                )
             )
-        ) or 0.0
+            or 0.0
+        )
 
         domain_stats.append(
             DomainStats(

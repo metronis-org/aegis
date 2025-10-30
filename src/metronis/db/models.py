@@ -5,23 +5,25 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    Float,
-    Integer,
+    JSON,
     Boolean,
-    Text,
+    Column,
+    DateTime,
+)
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import (
+    Float,
     ForeignKey,
     Index,
-    JSON,
-    Enum as SQLEnum,
+    Integer,
+    String,
+    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
+from metronis.core.models import EvaluationStatus, Severity
 from metronis.db.base import Base
-from metronis.core.models import Severity, EvaluationStatus
 
 
 class OrganizationModel(Base):

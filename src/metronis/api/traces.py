@@ -10,18 +10,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import or_, and_, desc
+from sqlalchemy import and_, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from metronis.api.dependencies import get_db, get_current_user
-from metronis.core.models import Trace, EvaluationResult, Severity
-from metronis.db.models import TraceModel, EvaluationResultModel, EvaluationIssueModel
+from metronis.api.dependencies import get_current_user, get_db
+from metronis.core.models import EvaluationResult, Severity, Trace
+from metronis.db.models import EvaluationIssueModel, EvaluationResultModel, TraceModel
 
 router = APIRouter(prefix="/traces", tags=["traces"])
 
 
 class TraceSummary(BaseModel):
     """Summary of a trace for list views."""
+
     trace_id: UUID
     organization_id: UUID
     application_type: str
@@ -36,6 +37,7 @@ class TraceSummary(BaseModel):
 
 class TraceDetail(BaseModel):
     """Full trace details."""
+
     trace: Trace
     evaluation: Optional[EvaluationResult]
     related_traces: List[TraceSummary]
@@ -43,6 +45,7 @@ class TraceDetail(BaseModel):
 
 class TraceSearchFilters(BaseModel):
     """Filters for trace search."""
+
     domain: Optional[str] = None
     application_type: Optional[str] = None
     model: Optional[str] = None
@@ -56,6 +59,7 @@ class TraceSearchFilters(BaseModel):
 
 class PaginatedTraces(BaseModel):
     """Paginated trace results."""
+
     traces: List[TraceSummary]
     total: int
     page: int
@@ -79,7 +83,7 @@ async def list_traces(
     sort_by: str = Query("created_at", regex="^(created_at|execution_time)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     List traces with filtering and pagination.
@@ -157,10 +161,15 @@ async def list_traces(
         )
 
         # Count issues
-        issue_count = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .filter(EvaluationIssueModel.evaluation_id == eval_result.evaluation_id)
-        ) if eval_result else 0
+        issue_count = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id).filter(
+                    EvaluationIssueModel.evaluation_id == eval_result.evaluation_id
+                )
+            )
+            if eval_result
+            else 0
+        )
 
         trace_summaries.append(
             TraceSummary(
@@ -173,7 +182,9 @@ async def list_traces(
                 evaluation_status=eval_result.status if eval_result else None,
                 overall_passed=eval_result.overall_passed if eval_result else None,
                 issues_count=issue_count,
-                execution_time_ms=eval_result.total_execution_time_ms if eval_result else None,
+                execution_time_ms=(
+                    eval_result.total_execution_time_ms if eval_result else None
+                ),
             )
         )
 
@@ -191,7 +202,7 @@ async def list_traces(
 async def get_trace_detail(
     trace_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Get full details for a specific trace.
@@ -237,10 +248,15 @@ async def get_trace_detail(
                 .limit(1)
             )
 
-            issue_count = await db.scalar(
-                func.count(EvaluationIssueModel.id)
-                .filter(EvaluationIssueModel.evaluation_id == related_eval.evaluation_id)
-            ) if related_eval else 0
+            issue_count = (
+                await db.scalar(
+                    func.count(EvaluationIssueModel.id).filter(
+                        EvaluationIssueModel.evaluation_id == related_eval.evaluation_id
+                    )
+                )
+                if related_eval
+                else 0
+            )
 
             related_traces.append(
                 TraceSummary(
@@ -251,9 +267,13 @@ async def get_trace_detail(
                     model=related.model,
                     created_at=related.created_at,
                     evaluation_status=related_eval.status if related_eval else None,
-                    overall_passed=related_eval.overall_passed if related_eval else None,
+                    overall_passed=(
+                        related_eval.overall_passed if related_eval else None
+                    ),
                     issues_count=issue_count,
-                    execution_time_ms=related_eval.total_execution_time_ms if related_eval else None,
+                    execution_time_ms=(
+                        related_eval.total_execution_time_ms if related_eval else None
+                    ),
                 )
             )
 
@@ -274,7 +294,7 @@ async def search_traces(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Advanced trace search with complex filters.
@@ -302,7 +322,7 @@ async def find_similar_traces(
     trace_id: UUID,
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Find similar traces based on embeddings or characteristics.
@@ -347,10 +367,15 @@ async def find_similar_traces(
             .limit(1)
         )
 
-        issue_count = await db.scalar(
-            func.count(EvaluationIssueModel.id)
-            .filter(EvaluationIssueModel.evaluation_id == eval_result.evaluation_id)
-        ) if eval_result else 0
+        issue_count = (
+            await db.scalar(
+                func.count(EvaluationIssueModel.id).filter(
+                    EvaluationIssueModel.evaluation_id == eval_result.evaluation_id
+                )
+            )
+            if eval_result
+            else 0
+        )
 
         similar_traces.append(
             TraceSummary(
@@ -363,7 +388,9 @@ async def find_similar_traces(
                 evaluation_status=eval_result.status if eval_result else None,
                 overall_passed=eval_result.overall_passed if eval_result else None,
                 issues_count=issue_count,
-                execution_time_ms=eval_result.total_execution_time_ms if eval_result else None,
+                execution_time_ms=(
+                    eval_result.total_execution_time_ms if eval_result else None
+                ),
             )
         )
 
@@ -374,7 +401,7 @@ async def find_similar_traces(
 async def delete_trace(
     trace_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Delete a trace and its associated evaluations.
@@ -399,7 +426,7 @@ async def delete_trace(
 async def bulk_delete_traces(
     trace_ids: List[UUID],
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     """
     Delete multiple traces in bulk.

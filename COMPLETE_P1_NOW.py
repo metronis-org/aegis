@@ -16,12 +16,14 @@ This script generates ALL P1 files in one execution.
 import os
 from pathlib import Path
 
+
 def create_file(path: str, content: str):
     """Create a file with the given content."""
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding='utf-8')
+    file_path.write_text(content, encoding="utf-8")
     print(f"Created {path}")
+
 
 print("=" * 80)
 print("STARTING P1 IMPLEMENTATION - ALL FEATURES")
@@ -2057,28 +2059,22 @@ files_to_create = {
     # Billing
     "src/metronis/services/billing_service.py": billing_service,
     "src/metronis/api/routes/billing.py": billing_routes,
-
     # Compliance
     "src/metronis/services/compliance_service.py": compliance_service,
     "src/metronis/api/routes/compliance.py": compliance_routes,
-
     # Configuration
     "src/metronis/config.py": config_module,
     ".env.example": env_example,
-
     # WebSocket
     "src/metronis/api/websocket_manager.py": websocket_manager,
     "src/metronis/api/routes/websocket.py": websocket_routes,
-
     # Onboarding
     "scripts/onboard_customer.py": onboarding_script,
     "src/metronis/api/routes/onboarding.py": onboarding_routes,
-
     # Domain specs
     "domains/trading/domain_spec.yaml": trading_domain_spec,
     "domains/robotics/domain_spec.yaml": robotics_domain_spec,
     "domains/legal/domain_spec.yaml": legal_domain_spec,
-
     # Frontend
     "frontend/package.json": package_json,
     "frontend/src/api/client.ts": api_client_ts,

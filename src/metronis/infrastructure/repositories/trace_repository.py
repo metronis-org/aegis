@@ -4,11 +4,11 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc
 
-from metronis.db.models import TraceModel
 from metronis.core.models import Trace
+from metronis.db.models import TraceModel
 
 
 class TraceRepository:
@@ -32,10 +32,16 @@ class TraceRepository:
             completion_tokens=trace.ai_processing.completion_tokens,
             total_tokens=trace.ai_processing.total_tokens,
             rl_episode=[step.model_dump() for step in trace.ai_processing.rl_episode],
-            policy_info=trace.ai_processing.policy_info.model_dump() if trace.ai_processing.policy_info else None,
+            policy_info=(
+                trace.ai_processing.policy_info.model_dump()
+                if trace.ai_processing.policy_info
+                else None
+            ),
             cumulative_reward=trace.ai_processing.cumulative_reward,
             episode_length=trace.ai_processing.episode_length,
-            retrieved_contexts=[ctx.model_dump() for ctx in trace.ai_processing.retrieved_contexts],
+            retrieved_contexts=[
+                ctx.model_dump() for ctx in trace.ai_processing.retrieved_contexts
+            ],
             domain=trace.metadata.domain,
             specialty=trace.metadata.specialty,
             patient_context=trace.metadata.patient_context,
@@ -68,7 +74,12 @@ class TraceRepository:
         if domain:
             query = query.filter(TraceModel.domain == domain)
 
-        return query.order_by(desc(TraceModel.created_at)).limit(limit).offset(offset).all()
+        return (
+            query.order_by(desc(TraceModel.created_at))
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
 
     def delete(self, trace_id: UUID) -> bool:
         """Delete a trace."""

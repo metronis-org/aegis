@@ -2,19 +2,22 @@
 
 import asyncio
 from logging.config import fileConfig
+
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-
 from metronis.core.config import settings
 from metronis.infrastructure.database import Base
+from metronis.infrastructure.models.evaluation_model import (
+    EvaluationModel,
+    EvaluationSummaryModel,
+)
+from metronis.infrastructure.models.organization_model import OrganizationModel
 
 # Import all models to ensure they're registered with SQLAlchemy
 from metronis.infrastructure.models.trace_model import TraceModel
-from metronis.infrastructure.models.evaluation_model import EvaluationModel, EvaluationSummaryModel
-from metronis.infrastructure.models.organization_model import OrganizationModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

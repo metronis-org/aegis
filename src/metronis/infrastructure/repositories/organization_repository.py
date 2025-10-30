@@ -16,17 +16,23 @@ class OrganizationRepository:
 
     def get_by_id(self, organization_id: UUID) -> Optional[OrganizationModel]:
         """Get organization by ID."""
-        return self.db.query(OrganizationModel).filter(
-            OrganizationModel.organization_id == organization_id
-        ).first()
+        return (
+            self.db.query(OrganizationModel)
+            .filter(OrganizationModel.organization_id == organization_id)
+            .first()
+        )
 
     def get_by_api_key(self, api_key: str) -> Optional[OrganizationModel]:
         """Get organization by API key."""
-        return self.db.query(OrganizationModel).filter(
-            OrganizationModel.api_key == api_key
-        ).first()
+        return (
+            self.db.query(OrganizationModel)
+            .filter(OrganizationModel.api_key == api_key)
+            .first()
+        )
 
-    def create(self, name: str, api_key: str, domain: Optional[str] = None) -> OrganizationModel:
+    def create(
+        self, name: str, api_key: str, domain: Optional[str] = None
+    ) -> OrganizationModel:
         """Create new organization."""
         org = OrganizationModel(
             name=name,

@@ -12,10 +12,11 @@ import structlog
 from pydantic import BaseModel
 
 try:
-    from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
     from sklearn.metrics import mean_squared_error, r2_score
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
@@ -26,6 +27,7 @@ logger = structlog.get_logger(__name__)
 
 class SimulationMetrics(BaseModel):
     """Metrics from simulation evaluation."""
+
     episode_return: float
     success_rate: float
     avg_episode_length: float
@@ -36,6 +38,7 @@ class SimulationMetrics(BaseModel):
 
 class RealWorldOutcome(BaseModel):
     """Real-world deployment outcome."""
+
     actual_return: float
     actual_success_rate: float
     deployment_cost: float
@@ -46,6 +49,7 @@ class RealWorldOutcome(BaseModel):
 
 class TransferDataPoint(BaseModel):
     """Single data point for transfer learning."""
+
     agent_id: str
     domain: str
     sim_metrics: SimulationMetrics
@@ -55,6 +59,7 @@ class TransferDataPoint(BaseModel):
 
 class TransferModel(BaseModel):
     """Trained transfer model configuration."""
+
     domain: str
     feature_names: List[str]
     target_names: List[str]
@@ -110,14 +115,16 @@ class TransferMetricLearner:
         features = []
         for dp in data_points:
             sim = dp.sim_metrics
-            features.append([
-                sim.episode_return,
-                sim.success_rate,
-                sim.avg_episode_length,
-                sim.exploration_efficiency,
-                float(sim.safety_violations),
-                sim.convergence_speed,
-            ])
+            features.append(
+                [
+                    sim.episode_return,
+                    sim.success_rate,
+                    sim.avg_episode_length,
+                    sim.exploration_efficiency,
+                    float(sim.safety_violations),
+                    sim.convergence_speed,
+                ]
+            )
 
         X = np.array(features)
 
@@ -178,9 +185,7 @@ class TransferMetricLearner:
 
         for target_name in self.target_metrics:
             y = y_dict[target_name]
-            y_train, y_test = train_test_split(
-                y, test_size=test_size, random_state=42
-            )
+            y_train, y_test = train_test_split(y, test_size=test_size, random_state=42)
 
             # Train gradient boosting model
             model = GradientBoostingRegressor(
@@ -239,14 +244,18 @@ class TransferMetricLearner:
             Predicted real-world outcome
         """
         # Prepare features
-        features = np.array([[
-            sim_metrics.episode_return,
-            sim_metrics.success_rate,
-            sim_metrics.avg_episode_length,
-            sim_metrics.exploration_efficiency,
-            float(sim_metrics.safety_violations),
-            sim_metrics.convergence_speed,
-        ]])
+        features = np.array(
+            [
+                [
+                    sim_metrics.episode_return,
+                    sim_metrics.success_rate,
+                    sim_metrics.avg_episode_length,
+                    sim_metrics.exploration_efficiency,
+                    float(sim_metrics.safety_violations),
+                    sim_metrics.convergence_speed,
+                ]
+            ]
+        )
 
         # Scale features
         scaler = self.scalers.get("main")

@@ -170,7 +170,9 @@ def generate_domain(
                 )
                 click.echo(f"  ✅ __init__.py")
             else:
-                click.echo("  ℹ️  No Tier-2 models to generate (no ml_model_type specified)")
+                click.echo(
+                    "  ℹ️  No Tier-2 models to generate (no ml_model_type specified)"
+                )
 
         if tier == "all" or tier == "3":
             click.echo(f"\n{'─'*80}")
@@ -227,7 +229,9 @@ def generate_domain(
 
         click.echo("\nNext steps:")
         click.echo(f"  1. Review generated files in {output_path}")
-        click.echo(f"  2. Test validators: python -m pytest {output_path}/tier1_modules/")
+        click.echo(
+            f"  2. Test validators: python -m pytest {output_path}/tier1_modules/"
+        )
         click.echo(f"  3. Register modules with ModuleRegistry")
 
     except Exception as e:
@@ -265,12 +269,8 @@ def list_domains(domains_path: Optional[Path]):
             if domain:
                 click.secho(f"• {domain_name}", fg="cyan", bold=True)
                 click.echo(f"  Risk Level: {domain.risk_level.value}")
-                click.echo(
-                    f"  Constraints: {len(domain.spec.safety_constraints)}"
-                )
-                click.echo(
-                    f"  Knowledge Bases: {len(domain.spec.knowledge_bases)}"
-                )
+                click.echo(f"  Constraints: {len(domain.spec.safety_constraints)}")
+                click.echo(f"  Knowledge Bases: {len(domain.spec.knowledge_bases)}")
                 if domain.spec.regulatory_frameworks:
                     click.echo(
                         f"  Compliance: {', '.join(domain.spec.regulatory_frameworks[:3])}"

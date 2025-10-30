@@ -37,9 +37,7 @@ class ModuleRegistry:
         self.modules: Dict[str, Dict[int, List[EvaluationModule]]] = {}
         # Structure: {domain_name: {tier_level: [modules]}}
 
-    def register_module(
-        self, module: EvaluationModule, domain: str, tier: int
-    ) -> None:
+    def register_module(self, module: EvaluationModule, domain: str, tier: int) -> None:
         """Register an evaluation module for a specific domain and tier."""
         if domain not in self.modules:
             self.modules[domain] = {}
@@ -376,9 +374,7 @@ class FiveTierOrchestrator(EvaluationOrchestrator):
         if not tier2_results:
             return 0.0
 
-        risk_scores = [
-            r.risk_score for r in tier2_results if r.risk_score is not None
-        ]
+        risk_scores = [r.risk_score for r in tier2_results if r.risk_score is not None]
         if not risk_scores:
             return 0.0
 
@@ -404,10 +400,6 @@ class FiveTierOrchestrator(EvaluationOrchestrator):
                 if issue.severity == Severity.HIGH
             ),
             "error_types": list(
-                set(
-                    issue.type
-                    for r in tier1_results
-                    for issue in r.issues
-                )
+                set(issue.type for r in tier1_results for issue in r.issues)
             ),
         }

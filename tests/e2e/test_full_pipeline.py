@@ -10,15 +10,16 @@ Tests the complete flow:
 """
 
 import asyncio
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from metronis.core.models import (
     AIProcessing,
     ApplicationType,
+    RLStep,
     Trace,
     TraceMetadata,
-    RLStep,
 )
 from metronis.services.phi_detector import PHIDetector
 from metronis.workers.evaluation_worker import EvaluationWorker
@@ -269,9 +270,9 @@ async def test_multi_domain_routing():
 
 # Run tests
 if __name__ == "__main__":
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("RUNNING END-TO-END TESTS")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     asyncio.run(test_healthcare_trace_with_phi())
     asyncio.run(test_rl_agent_trace_evaluation())
@@ -279,6 +280,6 @@ if __name__ == "__main__":
     asyncio.run(test_multi_domain_routing())
     asyncio.run(test_full_evaluation_pipeline())
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ ALL E2E TESTS COMPLETED")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
