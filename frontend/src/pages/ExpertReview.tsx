@@ -17,7 +17,7 @@ interface ReviewTrace {
   created_at: string;
 }
 
-export const ExpertReview: React.FC = () => {
+const ExpertReview: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [label, setLabel] = useState<'pass' | 'fail' | 'needs_review'>('pass');
   const [confidence, setConfidence] = useState(0.8);
@@ -216,3 +216,5 @@ export const ExpertReview: React.FC = () => {
     </div>
   );
 };
+
+export default ExpertReview;

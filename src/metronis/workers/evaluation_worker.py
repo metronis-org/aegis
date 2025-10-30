@@ -19,6 +19,7 @@ from metronis.infrastructure.repositories.evaluation_repository import (
     EvaluationRepository,
 )
 from metronis.infrastructure.repositories.trace_repository import TraceRepository
+from metronis.services.knowledge_base_service import KnowledgeBaseService
 from metronis.workers.queue_service import QueueService
 
 logger = structlog.get_logger(__name__)
@@ -46,10 +47,14 @@ class EvaluationWorker:
         # Initialize queue service
         self.queue = QueueService(redis_url=redis_url)
 
+        # Initialize knowledge base service
+        self.knowledge_base_service = KnowledgeBaseService(redis_url=redis_url)
+
         # Initialize orchestrator
         self.orchestrator = FiveTierOrchestrator(
             domain_registry=self.domain_registry,
             module_registry=self.module_registry,
+            knowledge_base_service=self.knowledge_base_service,
         )
 
         logger.info("Evaluation worker initialized")

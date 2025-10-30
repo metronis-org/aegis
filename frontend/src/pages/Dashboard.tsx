@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 
-export const Dashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
     total_traces: 0,
     pass_rate: 0,
@@ -102,6 +102,8 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+export default Dashboard;
 
 interface StatCardProps {
   title: string;

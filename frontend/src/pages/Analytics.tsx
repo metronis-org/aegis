@@ -9,7 +9,7 @@ import { apiClient } from '../api/client';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export const Analytics: React.FC = () => {
+const Analytics: React.FC = () => {
   const { data: usage } = useQuery({
     queryKey: ['usage'],
     queryFn: () => apiClient.getUsageSummary(),
@@ -137,3 +137,5 @@ const StatCard: React.FC<StatCardProps> = ({ title, value }) => (
     <p className="text-2xl font-bold text-gray-900">{value}</p>
   </div>
 );
+
+export default Analytics;
